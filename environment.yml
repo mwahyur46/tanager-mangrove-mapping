@@ -1,0 +1,29 @@
+name: tanager-mangrove
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - xgboost
+  - h5py
+  - xarray
+  - rioxarray
+  - rasterio
+  - geopandas
+  - shapely
+  - pyproj
+  - joblib
+  - tqdm
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+      - earthengine-api
+      - pystac-client
+      - planetary-computer
