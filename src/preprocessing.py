@@ -514,16 +514,19 @@ def apply_adaptive_threshold(indices: dict, scene_id: str,
 
 def compute_coastal_candidate_mask(data: dict,
                                     indices: dict,
+                                    max_buffer_m: float = 500.0,
                                     return_diagnostics: bool = False):
     """
     Compute adaptive coastal candidate mask for mangrove detection.
-    All thresholds derived per-scene via Otsu (no fixed parameters).
+    All thresholds derived per-scene via Otsu (no fixed parameters),
+    with an optional hard cap on the buffer distance.
 
     Pipeline:
       1. Water mask      : MNDWI > Otsu(MNDWI)
       2. Vegetation mask : SAVI  > Otsu(SAVI)
       3. Distance transform from water (Euclidean, pixels)
-      4. Buffer threshold: Otsu(distance | vegetated pixels)
+      4. Buffer threshold: Otsu(distance | vegetated pixels),
+                           capped at max_buffer_m
       5. Candidate       : vegetation AND distance<buffer AND NOT water
 
     Rationale: Otsu on distance-from-water within vegetated pixels separates
@@ -531,17 +534,27 @@ def compute_coastal_candidate_mask(data: dict,
     (rainforest, plantation, revegetated mining)". Buffer width is therefore
     adaptive to scene geography (wide in Belize, narrow in Sangatta).
 
+    The max_buffer_m cap prevents inflated buffers in scenes dominated by
+    large inland forest blocks (e.g. KNP in Sangatta), where Otsu is pulled
+    toward large distance values by the inland vegetation distribution.
+    Mangroves are tidally constrained and do not occur far from coastal water,
+    so a ceiling of 500 m is ecologically defensible across all sites.
+
     Parameters
     ----------
-    data    : dict from load_geotiff_bands()
-    indices : dict from compute_all_indices()
+    data          : dict from load_geotiff_bands()
+    indices       : dict from compute_all_indices()
+    max_buffer_m  : hard ceiling on buffer distance in metres (default 500).
+                    Otsu result is used if it is smaller than this value;
+                    otherwise max_buffer_m is applied instead.
     return_diagnostics : if True, return (mask, dict_of_intermediates)
 
     Returns
     -------
     candidate_mask : 2D bool array (True = coastal vegetated pixel)
     diagnostics    : dict (optional) with water_t, veg_t, buffer_t_px,
-                     buffer_t_m, pixel_size_m, water_mask, veg_mask, dist_px
+                     buffer_t_m, buffer_capped, pixel_size_m,
+                     water_mask, veg_mask, dist_px
     """
     mndwi = indices['MNDWI']
     savi  = indices['SAVI']
@@ -567,34 +580,45 @@ def compute_coastal_candidate_mask(data: dict,
     dist_veg = dist_px[veg_mask & np.isfinite(dist_px)]
     if len(dist_veg) == 0:
         raise ValueError("No vegetated pixels — check SAVI threshold or data")
-    buffer_t_px = float(threshold_otsu(dist_veg))
-
-    # 5. Candidate
-    candidate = veg_mask & (dist_px < buffer_t_px) & (~water_mask)
+    buffer_otsu_px = float(threshold_otsu(dist_veg))
 
     # Convert buffer to meters (approx, assumes square pixels)
     try:
         pixel_size_m = float(abs(data['transform'].a))
     except (KeyError, AttributeError):
         pixel_size_m = 1.0
-    buffer_t_m = buffer_t_px * pixel_size_m
+
+    # Apply hard cap: use Otsu result only if it is within max_buffer_m
+    max_buffer_px = max_buffer_m / pixel_size_m
+    buffer_capped = buffer_otsu_px > max_buffer_px
+    buffer_t_px   = min(buffer_otsu_px, max_buffer_px)
+    buffer_t_m    = buffer_t_px * pixel_size_m
+
+    # 5. Candidate
+    candidate = veg_mask & (dist_px < buffer_t_px) & (~water_mask)
 
     print(f"  Coastal candidate mask:")
     print(f"  water_t  (MNDWI)    : {water_t:.4f}")
     print(f"  veg_t    (SAVI)     : {veg_t:.4f}")
-    print(f"  buffer_t (distance) : {buffer_t_px:.1f} px (~{buffer_t_m:.0f} m)")
+    print(f"  buffer_t (otsu)     : {buffer_otsu_px:.1f} px (~{buffer_otsu_px * pixel_size_m:.0f} m)")
+    if buffer_capped:
+        print(f"  buffer_t (capped)   : {buffer_t_px:.1f} px (~{buffer_t_m:.0f} m)  [cap applied]")
+    else:
+        print(f"  buffer_t (final)    : {buffer_t_px:.1f} px (~{buffer_t_m:.0f} m)  [no cap needed]")
     print(f"  candidate pixels    : {int(candidate.sum()):,} ({100*candidate.mean():.1f}%)")
 
     if return_diagnostics:
         diag = {
-            'water_t'      : water_t,
-            'veg_t'        : veg_t,
-            'buffer_t_px'  : buffer_t_px,
-            'buffer_t_m'   : buffer_t_m,
-            'pixel_size_m' : pixel_size_m,
-            'water_mask'   : water_mask,
-            'veg_mask'     : veg_mask,
-            'dist_px'      : dist_px,
+            'water_t'       : water_t,
+            'veg_t'         : veg_t,
+            'buffer_otsu_px': buffer_otsu_px,
+            'buffer_t_px'   : buffer_t_px,
+            'buffer_t_m'    : buffer_t_m,
+            'buffer_capped' : buffer_capped,
+            'pixel_size_m'  : pixel_size_m,
+            'water_mask'    : water_mask,
+            'veg_mask'      : veg_mask,
+            'dist_px'       : dist_px,
         }
         return candidate, diag
     return candidate

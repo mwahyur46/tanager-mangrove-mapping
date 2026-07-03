@@ -1,154 +1,36 @@
 # =============================================================================
 # continuum.py
-# Hyperspectral diagnostic features via continuum removal (CR)
+# Hyperspectral diagnostic feature: Red-edge Inflection Point (REIP)
 # =============================================================================
 #
 # Purpose
 # -------
-# Derive physically-meaningful diagnostic features from Tanager's full 426-band
+# Derive a physically-meaningful diagnostic feature from Tanager's full 426-band
 # spectrum that CANNOT be reproduced from broadband multispectral sensors
-# (Sentinel-2, Landsat). These features are computed from many narrow contiguous
-# bands around a target absorption feature, then reduced to a single per-pixel
-# value (absorption depth) used as an additional input to RF/XGBoost.
+# (Sentinel-2, Landsat). REIP is computed from many narrow contiguous bands
+# across the red-edge region, then reduced to a single per-pixel value (the
+# wavelength of maximum reflectance slope) used as an additional input to
+# RF/XGBoost.
 #
 # This complements the 5 spectral indices: indices drive the adaptive threshold
-# and pseudo-labels (unchanged), while absorption depth adds spectral-shape
-# information that distinguishes mangrove leaf water content from other coastal
-# vegetation.
+# and pseudo-labels (unchanged), while REIP adds spectral-shape information that
+# distinguishes mangrove canopy structure from other coastal vegetation.
 #
-# Method
-# ------
-# Continuum removal isolates an absorption feature by dividing the reflectance
-# spectrum by its convex-hull (or straight-line) continuum. Band depth at the
-# absorption minimum quantifies feature strength:
-#
-#     D = 1 - (R_b / R_c)
-#
-# where R_b is reflectance at the absorption band and R_c is the interpolated
-# continuum reflectance at the same wavelength (van der Meer, 2004).
-#
-# References
-# ----------
-# Clark, R.N. & Roush, T.L. (1984). Reflectance Spectroscopy: Quantitative
-#   Analysis Techniques for Remote Sensing Applications. Journal of Geophysical
-#   Research, 89(B7), 6329-6340. doi:10.1029/JB089iB07p06329
-#   (seminal definition of continuum and band depth)
-#
-# van der Meer, F. (2004). Analysis of Spectral Absorption Features in
-#   Hyperspectral Imagery. International Journal of Applied Earth Observation
-#   and Geoinformation, 5(1), 55-68. doi:10.1016/j.jag.2003.09.001
-#   (band-depth formula D = 1 - Rb/Rc applied to discrete-band imagery, with
-#    linear interpolation of the continuum across shoulder bands)
-#
-# Target absorption feature for mangrove
-# --------------------------------------
-# 1640 nm SWIR water-absorption region. Mangroves grow in saline conditions and
-# their leaf water content and internal structure produce a characteristic
-# water-absorption response. The 1640 nm band already anchors NDMI/MNDWI/MVI,
-# so the diagnostic feature is built around a wavelength already central to the
-# pipeline (Gao, 1996, NDWI; Xu, 2006, MNDWI).
+# Note (history)
+# --------------
+# A continuum-removal absorption-depth feature at 1640 nm was previously
+# evaluated here but removed: the Sangatta SWIR spectrum rises monotonically
+# across 1500-1780 nm, so no genuine absorption trough exists (continuum values
+# collapse toward zero, producing degenerate depth values). Its contribution to
+# classification accuracy was negligible (delta Kappa within noise). REIP is
+# retained as the sole hyperspectral hook.
 # =============================================================================
 
 import numpy as np
 
 
 # =============================================================================
-# 1. Per-pixel absorption depth at a single feature
-# =============================================================================
-
-def absorption_depth(data: dict,
-                     left_nm: float,
-                     center_nm: float,
-                     right_nm: float,
-                     tolerance_nm: float = 15.0) -> np.ndarray:
-    """
-    Compute continuum-removed band depth at a target absorption feature.
-
-    The continuum is a straight line between the two shoulder wavelengths
-    (left_nm, right_nm). Band depth at center_nm is:
-
-        D = 1 - (R_center / R_continuum_at_center)
-
-    Higher D = deeper absorption = stronger feature.
-
-    Parameters
-    ----------
-    data         : dict from load_hdf5() with keys 'reflectance' (B,H,W) and
-                   'wavelengths' (B,)
-    left_nm       : left shoulder wavelength (continuum start), e.g. 1500
-    center_nm     : absorption minimum wavelength, e.g. 1640
-    right_nm      : right shoulder wavelength (continuum end), e.g. 1750
-    tolerance_nm  : max allowed deviation when matching nearest band
-
-    Returns
-    -------
-    2D np.ndarray (H, W) of band depth values, NaN where reflectance invalid
-
-    Notes
-    -----
-    Continuum line is interpolated linearly between shoulders, following
-    van der Meer (2004) for discrete-band (non-continuous) imagery.
-    """
-    wl  = data['wavelengths']
-    refl = data['reflectance']
-
-    def _nearest_band(target):
-        idx = int(np.argmin(np.abs(wl - target)))
-        if np.abs(wl[idx] - target) > tolerance_nm:
-            raise ValueError(
-                f"No band within {tolerance_nm} nm of {target} nm "
-                f"(nearest = {wl[idx]:.1f} nm)"
-            )
-        return idx
-
-    i_left   = _nearest_band(left_nm)
-    i_center = _nearest_band(center_nm)
-    i_right  = _nearest_band(right_nm)
-
-    wl_left,   wl_center,  wl_right  = wl[i_left], wl[i_center], wl[i_right]
-    R_left     = refl[i_left]
-    R_center   = refl[i_center]
-    R_right    = refl[i_right]
-
-    # Linear continuum interpolated at center wavelength
-    # R_c = R_left + (R_right - R_left) * (wl_center - wl_left)/(wl_right - wl_left)
-    frac  = (wl_center - wl_left) / (wl_right - wl_left)
-    R_cont = R_left + (R_right - R_left) * frac
-
-    # Band depth; guard against divide-by-zero / invalid continuum
-    with np.errstate(divide='ignore', invalid='ignore'):
-        depth = 1.0 - (R_center / R_cont)
-
-    # Invalid where any input is non-finite, continuum <= 0, or continuum
-    # too small (near-zero Rc causes extreme depth values in cloud/shadow
-    # pixels where SWIR reflectance collapses; threshold 0.05 is conservative
-    # for surface-reflectance data -- Gomez et al. (2008) note CR degrades
-    # at low-SNR conditions typical of airborne/satellite SWIR acquisition)
-    invalid = (
-        ~(np.isfinite(R_center) & np.isfinite(R_cont))
-        | (R_cont < 0.05)
-    )
-    depth[invalid] = np.nan
-
-    # Clip to physically plausible range [-1, 1]
-    # D > 1 : R_center < 0 (sensor noise/artefact)
-    # D < -1: R_center >> R_cont (specular reflection / saturated pixel)
-    depth = np.clip(depth, -1.0, 1.0)
-    # Re-apply NaN after clip (clip does not preserve NaN)
-    depth[invalid] = np.nan
-
-    n_valid = int(np.isfinite(depth).sum())
-    print(f"  Absorption depth @ {wl_center:.0f} nm "
-          f"(shoulders {wl_left:.0f}/{wl_right:.0f}):")
-    print(f"  valid px       : {n_valid:,}")
-    print(f"  depth range    : {np.nanmin(depth):.4f} to {np.nanmax(depth):.4f}")
-    print(f"  depth mean     : {np.nanmean(depth):.4f}")
-
-    return depth.astype(np.float32)
-
-
-# =============================================================================
-# 2. Red-edge Inflection Point (REIP)
+# Red-edge Inflection Point (REIP)
 # =============================================================================
 
 # Default red-edge window for mangrove mapping.
@@ -257,29 +139,3 @@ def compute_reip(data: dict,
     print(f"  REIP mean      : {np.nanmean(reip_map):.1f} nm")
 
     return reip_map.astype(np.float32)
-
-
-# =============================================================================
-# 3. Convenience: mangrove water-absorption feature at 1640 nm
-# =============================================================================
-
-# Default shoulders for the 1640 nm SWIR water-absorption feature.
-# Shoulders chosen at reflectance highs flanking the water absorption trough,
-# avoiding the deeper 1400 nm and 1900 nm atmospheric water bands.
-WATER_1640 = {'left_nm': 1500.0, 'center_nm': 1640.0, 'right_nm': 1780.0}
-
-
-def absorption_depth_1640(data: dict, tolerance_nm: float = 15.0) -> np.ndarray:
-    """
-    Mangrove leaf-water absorption depth at 1640 nm (SWIR1).
-    Wrapper around absorption_depth() with preset shoulders (WATER_1640).
-
-    See module docstring for physical rationale and references.
-    """
-    return absorption_depth(
-        data,
-        left_nm=WATER_1640['left_nm'],
-        center_nm=WATER_1640['center_nm'],
-        right_nm=WATER_1640['right_nm'],
-        tolerance_nm=tolerance_nm,
-    )

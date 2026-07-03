@@ -329,26 +329,56 @@ def predict_extent(model, indices: dict,
 # 7. Hyperparameter Tuning
 # =============================================================================
 
+# Gold-standard search spaces (classification variant)
+# Adapted from model_utils.py (regression project reference).
+# Scoring: F1 mangrove class (pos_label=1) — preferred over accuracy
+# for minority-class remote sensing problems.
+
+from scipy.stats import randint as _randint, uniform as _uniform
+
+_RF_PARAM_DIST = {
+    'n_estimators'     : _randint(100, 600),
+    'max_depth'        : _randint(3, 30),
+    'min_samples_split': _randint(2, 20),
+    'min_samples_leaf' : _randint(1, 10),
+    'max_features'     : ['sqrt', 'log2', 0.3, 0.5],
+    'class_weight'     : ['balanced', 'balanced_subsample'],
+}
+
+_XGB_PARAM_DIST = {
+    'n_estimators'     : _randint(100, 600),
+    'max_depth'        : _randint(3, 10),
+    'learning_rate'    : _uniform(0.01, 0.29),   # [0.01, 0.30]
+    'subsample'        : _uniform(0.6, 0.4),      # [0.6, 1.0]
+    'colsample_bytree' : _uniform(0.6, 0.4),      # [0.6, 1.0]
+    'min_child_weight' : _randint(1, 10),
+    'gamma'            : _uniform(0, 0.5),
+    'reg_alpha'        : _uniform(0, 1.0),        # L1
+    'reg_lambda'       : _uniform(0.5, 1.5),      # L2
+}
+
+
 def tune_random_forest(X_train: np.ndarray, y_train: np.ndarray,
-                       n_iter: int = 30,
+                       n_iter: int = 50,
                        cv: int = 5,
                        random_state: int = 42) -> tuple:
     """
-    Tune Random Forest hyperparameters via RandomizedSearchCV.
+    Tune Random Forest classifier via RandomizedSearchCV.
 
-    Scoring metric: F1 for the mangrove class (pos_label=1), chosen because
-    mangrove pixels are a minority class (~2-5% of valid pixels) and F1
-    balances precision-recall tradeoff better than overall accuracy.
+    Search space: gold-standard distributions covering tree depth,
+    leaf size, feature sampling, and class weighting. Continuous
+    parameters sampled via scipy.stats distributions for better
+    coverage than fixed lists.
 
-    Search space covers the parameters most impactful for RF on imbalanced
-    remote sensing data: tree depth, leaf size, and feature sampling fraction.
+    Scoring: F1 for the mangrove class (pos_label=1). Preferred over
+    overall accuracy for minority-class remote sensing problems.
 
     Parameters
     ----------
     X_train      : training feature matrix from build_feature_matrix()
     y_train      : training labels from split_data()
-    n_iter       : number of random parameter combinations to try (default 30)
-    cv           : number of cross-validation folds (default 5)
+    n_iter       : random parameter combinations to try (default 50)
+    cv           : cross-validation folds (default 5)
     random_state : random seed for reproducibility
 
     Returns
@@ -356,23 +386,9 @@ def tune_random_forest(X_train: np.ndarray, y_train: np.ndarray,
     best_model  : fitted RandomForestClassifier with best parameters
     best_params : dict of best hyperparameters
     best_score  : best CV F1 score (mangrove class, pseudo-label set)
-
-    Notes
-    -----
-    Tuning is performed on the pseudo-label training set. The tuned model
-    should still be evaluated against GMW v3 (independent ground truth) via
-    evaluate_against_gmw() to confirm real-world improvement.
     """
     from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
     from sklearn.metrics import make_scorer, f1_score
-
-    param_dist = {
-        'n_estimators'     : [100, 200, 300],
-        'max_depth'        : [None, 20, 30],
-        'min_samples_leaf' : [1, 2, 4],
-        'max_features'     : ['sqrt', 0.3],
-        'class_weight'     : ['balanced', 'balanced_subsample'],
-    }
 
     cv_split = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
     scorer   = make_scorer(f1_score, pos_label=1, zero_division=0)
@@ -383,7 +399,7 @@ def tune_random_forest(X_train: np.ndarray, y_train: np.ndarray,
                                   n_jobs=-1,
                                   oob_score=False,
                               ),
-        param_distributions = param_dist,
+        param_distributions = _RF_PARAM_DIST,
         n_iter              = n_iter,
         scoring             = scorer,
         cv                  = cv_split,
@@ -393,9 +409,9 @@ def tune_random_forest(X_train: np.ndarray, y_train: np.ndarray,
         refit               = True,
     )
 
-    print(f"  RandomizedSearchCV: {n_iter} iterations x {cv}-fold CV")
-    print(f"  Scoring           : F1 (mangrove class)")
-    print(f"  Training set      : {X_train.shape[0]:,} samples x "
+    print(f"  [RF] RandomizedSearchCV : {n_iter} iter x {cv}-fold CV")
+    print(f"  Scoring                 : F1 (mangrove class)")
+    print(f"  Training set            : {X_train.shape[0]:,} samples x "
           f"{X_train.shape[1]} features")
 
     search.fit(X_train, y_train)
@@ -404,12 +420,94 @@ def tune_random_forest(X_train: np.ndarray, y_train: np.ndarray,
     best_score  = search.best_score_
     best_model  = search.best_estimator_
 
-    print(f"\n  Best CV F1 (pseudo-label) : {best_score:.4f}")
-    print(f"  Best parameters:")
+    print(f"\n  Best CV F1 : {best_score:.4f}")
+    print(f"  Best params:")
     for k, v in sorted(best_params.items()):
         print(f"    {k:<22}: {v}")
 
     return best_model, best_params, best_score
+
+
+def tune_xgboost(X_train: np.ndarray, y_train: np.ndarray,
+                 n_iter: int = 50,
+                 cv: int = 5,
+                 random_state: int = 42) -> tuple:
+    """
+    Tune XGBoost classifier via RandomizedSearchCV.
+
+    Search space: gold-standard distributions covering tree depth,
+    learning rate, subsampling, column sampling, regularization (L1/L2),
+    and minimum child weight. Continuous parameters sampled via
+    scipy.stats.uniform for dense coverage.
+
+    scale_pos_weight is set automatically from class ratio to handle
+    mangrove minority class — not included in search space to avoid
+    interaction with other imbalance-handling params.
+
+    Scoring: F1 for the mangrove class (pos_label=1).
+
+    Parameters
+    ----------
+    X_train      : training feature matrix from build_feature_matrix()
+    y_train      : training labels from split_data()
+    n_iter       : random parameter combinations to try (default 50)
+    cv           : cross-validation folds (default 5)
+    random_state : random seed for reproducibility
+
+    Returns
+    -------
+    best_model  : fitted XGBClassifier with best parameters
+    best_params : dict of best hyperparameters
+    best_score  : best CV F1 score (mangrove class, pseudo-label set)
+    """
+    from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
+    from sklearn.metrics import make_scorer, f1_score
+    from xgboost import XGBClassifier
+
+    n_neg = int(np.sum(y_train == 0))
+    n_pos = int(np.sum(y_train == 1))
+    spw   = n_neg / max(n_pos, 1)
+
+    cv_split = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
+    scorer   = make_scorer(f1_score, pos_label=1, zero_division=0)
+
+    search = RandomizedSearchCV(
+        estimator           = XGBClassifier(
+                                  objective         = 'binary:logistic',
+                                  scale_pos_weight  = spw,
+                                  random_state      = random_state,
+                                  n_jobs            = 1,    # parallelism via n_jobs below
+                                  verbosity         = 0,
+                                  eval_metric       = 'logloss',
+                              ),
+        param_distributions = _XGB_PARAM_DIST,
+        n_iter              = n_iter,
+        scoring             = scorer,
+        cv                  = cv_split,
+        verbose             = 1,
+        random_state        = random_state,
+        n_jobs              = -1,
+        refit               = True,
+    )
+
+    print(f"  [XGB] RandomizedSearchCV : {n_iter} iter x {cv}-fold CV")
+    print(f"  Scoring                  : F1 (mangrove class)")
+    print(f"  scale_pos_weight         : {spw:.2f}  (neg={n_neg:,} / pos={n_pos:,})")
+    print(f"  Training set             : {X_train.shape[0]:,} samples x "
+          f"{X_train.shape[1]} features")
+
+    search.fit(X_train, y_train)
+
+    best_params = search.best_params_
+    best_score  = search.best_score_
+    best_model  = search.best_estimator_
+
+    print(f"\n  Best CV F1 : {best_score:.4f}")
+    print(f"  Best params:")
+    for k, v in sorted(best_params.items()):
+        print(f"    {k:<22}: {v}")
+
+    return best_model, best_params, best_score, search
 
 
 # =============================================================================
