@@ -2,7 +2,7 @@
 
 **Transferable Mangrove Extent and Biomass Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
 
-Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026.)
+Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026).
 
 ---
 
@@ -10,19 +10,23 @@ Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/)
 
 This repository implements a transferable framework for mangrove extent and biomass mapping using Tanager-1 hyperspectral imagery (426 bands, 380-2500 nm, 30 m resolution).
 
-**Core innovation:** per-scene adaptive spectral threshold calibration via histogram bimodal detection (with Otsu fallback) — eliminating the need for fixed thresholds from external studies and enabling transferability across geographic regions without retraining. Open water is masked via MNDWI before thresholding to keep bimodal peaks clean.
+**Core innovation:** per-scene adaptive spectral threshold calibration via histogram bimodal detection (with Otsu fallback), eliminating the need for fixed thresholds from external studies and enabling transferability across geographic regions without retraining. Open water is masked via MNDWI before thresholding to keep bimodal peaks clean.
+
+**Hyperspectral feature:** the Red-edge Inflection Point (REIP) is derived from the full 426-band spectrum and added to the classifier feature stack. REIP requires many narrow contiguous red-edge bands and cannot be reproduced from broadband multispectral sensors (Sentinel-2, Landsat), so it acts as the hyperspectral hook that distinguishes this framework from a purely multispectral approach.
 
 **Pipeline:**
 
 ```
 Tanager-1 HDF5 (data/raw/)
-    └── Step 0: inspect_hdf5() → HDF5 → GeoTIFF (5 bands only) → data/processed/
+    └── Step 0: inspect_hdf5() → HDF5 → GeoTIFF (5 bands) → data/processed/
     └── Step 1: Spectral Indices (NDMI, MNDWI, MVI, SAVI, EMI)
     └── Step 2: Water mask (MNDWI) + Adaptive Threshold per scene  ← core innovation
-                bimodal valley detection; Otsu fallback if unimodal
-    └── Step 3: Pseudo-labels (MVI ∧ NDMI) → RF + XGBoost (class-balanced)
-    └── Step 4: GEDI L4A Fusion — wall-to-wall AGB + carbon map (Sangatta)
-    └── Step 5: Transferability — Steps 1–3 applied to 4 new sites, no retraining
+                bimodal valley detection; Otsu fallback if unimodal (MVI forced Otsu)
+    └── Step 3: Hyperspectral feature (REIP) from full 426-band spectrum
+    └── Step 4: Pseudo-labels (MVI ∧ NDMI) → RF + XGBoost (class-balanced)
+                feature stack = 5 indices + REIP
+    └── Step 5: GEDI L4A Fusion: wall-to-wall AGB + carbon map (Sangatta)
+    └── Step 6: Transferability: pipeline applied to 4 new sites, no retraining
                 per-scene thresholds saved to outputs/results/thresholds_{scene_id}.json
 ```
 
@@ -34,22 +38,24 @@ Tanager-1 HDF5 (data/raw/)
 | Gujarat, India | `20250311_061550_53_4001` | Transferability |
 | El Salvador | `20250223_165546_32_4001` | Transferability |
 | Belize | `20250824_171857_84_4001` | Transferability |
-| Ho Chi Minh, Vietnam | `20250407_035527_47_4001` | Transferability (TBC) |
+| Australia | `20250608_014315_58_4001` | Transferability |
 
 ## Repository Structure
 
 ```
 tanager-mangrove-mapping/
 ├── notebooks/
-│   ├── 01_preprocessing.ipynb       # HDF5 inspection, band extraction, water mask, adaptive threshold
+│   ├── 01_preprocessing.ipynb       # HDF5 inspection, band extraction, indices, water mask, adaptive threshold, REIP
 │   ├── 02_classification.ipynb      # Pseudo-labels, RF + XGBoost (class-balanced), extent map
 │   ├── 03_gedi_fusion.ipynb         # GEDI L4A join, AGB regression, carbon map (Sangatta)
 │   └── 04_transferability.ipynb     # run_all_transfer_sites() → 4 sites, no retraining
 ├── src/
-│   ├── preprocessing.py             # HDF5 I/O, GeoTIFF conversion, indices, water mask, adaptive threshold, save_raster
+│   ├── preprocessing.py             # HDF5 I/O, GeoTIFF conversion, indices, water mask, adaptive threshold
 │   ├── classification.py            # Pseudo-labels, RF + XGBoost, evaluation, compare_models
+│   ├── continuum.py                 # Red-edge Inflection Point (REIP) from full 426-band spectrum
+│   ├── evaluation.py                # Independent accuracy assessment vs GMW v3 (confusion, kappa, agreement maps)
 │   ├── gedi_utils.py                # GEDI loading, spatial join (vectorised), AGB regression, carbon conversion
-│   └── transferability.py          # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
+│   └── transferability.py           # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
 ├── data/
 │   ├── README_data.md               # Download instructions (no large files in repo)
 │   ├── raw/                         # HDF5 originals from Planet STAC (gitignored)
@@ -61,7 +67,7 @@ tanager-mangrove-mapping/
 │   ├── models/                      # Trained RF + XGBoost + AGB regressor (.joblib)
 │   └── results/                     # Accuracy tables (.csv), thresholds per scene (.json)
 ├── docs/
-│   └── technical_memo.pdf           # Methods write-up (W11–W12)
+│   └── technical_memo.pdf           # Methods write-up (W11-W12)
 └── mangrove_tanager_final.ipynb     # Competition submission notebook
 ```
 
@@ -80,10 +86,10 @@ Run notebooks in order. Each notebook saves outputs consumed by the next.
 
 | Notebook | Key input | Key output |
 |---|---|---|
-| `01_preprocessing` | `data/raw/{scene_id}.h5` | `data/processed/*_nm.tif`, `outputs/results/thresholds_*.json` |
-| `02_classification` | processed GeoTIFFs + thresholds JSON | `outputs/models/rf_*.joblib`, `data/processed/extent_mangrove_*.tif` |
+| `01_preprocessing` | `data/raw/{scene_id}.h5` | `data/processed/*_bands.tif`, `reip_*.tif`, `outputs/results/thresholds_*.json` |
+| `02_classification` | processed GeoTIFFs + REIP + thresholds JSON | `outputs/models/rf_*.joblib`, `xgb_*.joblib`, `data/processed/extent_mangrove_*.tif` |
 | `03_gedi_fusion` | extent map + `data/raw/gedi_l4a_sangatta.geojson` | `data/processed/agb_map_*.tif`, `carbon_map_*.tif` |
-| `04_transferability` | RF model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary.csv` |
+| `04_transferability` | RF/XGBoost model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary.csv` |
 
 **Before running notebook 01:** call `inspect_hdf5()` on your Tanager `.h5` file and verify the path constants in `src/preprocessing.py` (`REFLECTANCE_PATH`, `WAVELENGTH_PATH`, `LON_PATH`, `LAT_PATH`) match your file's internal structure.
 
@@ -101,3 +107,4 @@ MIT License. See `LICENSE`.
 - Rahmila, Y. I., Prasetyo, L. B., Kusmana, C., Suyadi, Basyuni, M., Slamet, B., Pranoto, B., Yulianti, M., Yeny, I., Halwany, W., Rahmania, R., Januar, H. I., Adji, A. S., & Munawaroh. (2026). Mangrove Ecosystem Health Index (MEHI): a new method to evaluate mangrove ecosystem health at landscape scale using spatial metrics, canopy density, and potential disturbance based on hexagonal grid. Forest Science and Technology, 1–20. https://doi.org/10.1080/21580103.2026.2616443
 - Shendryk, Y. (2022). Fusing GEDI with earth observation data for large area aboveground biomass mapping. International Journal of Applied Earth Observation and Geoinformation, 115, 103108. https://doi.org/10.1016/j.jag.2022.103108
 - Zhang, R., & Fan, J. (2025). Classification and Carbon-Stock estimation of mangroves in Dongzhaigang based on Multi-Source remote sensing data using Google Earth Engine. Remote Sensing, 17(6), 964. https://doi.org/10.3390/rs17060964
+```
