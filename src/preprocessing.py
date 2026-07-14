@@ -1,7 +1,7 @@
 # =============================================================================
 # preprocessing.py
 # HDF5 loader, HDF5->GeoTIFF conversion, band extractor,
-# spectral indices, adaptive threshold
+# spectral indices (NDMI, MNDWI, MVI, SAVI, EMI, REIP), adaptive threshold
 # =============================================================================
 
 import re
@@ -46,6 +46,10 @@ RELEVANT_WAVELENGTHS = {
     'swir1' : 1640,   # NDMI, MNDWI, MVI
     'swir2' : 2200,   # EMI
 }
+
+# Red-edge window for REIP computation (nm).
+# Mangrove sigmoid rise ~660-770 nm; REIP typically 710-730 nm.
+REIP_WINDOW = {'left_nm': 670.0, 'right_nm': 760.0}
 
 
 def inspect_hdf5(filepath: str) -> None:
@@ -368,8 +372,104 @@ def compute_emi(data: dict) -> np.ndarray:
     return np.clip((nir - swir2) / (nir + swir2 + 1e-10), -1, 1)
 
 
+def compute_reip(data: dict,
+                 left_nm: float = 670.0,
+                 right_nm: float = 760.0,
+                 tolerance_nm: float = 10.0) -> np.ndarray:
+    """
+    Compute Red-edge Inflection Point (REIP) per pixel.
+
+    REIP is the wavelength at which the first derivative of reflectance
+    reaches its maximum within the red-edge region [left_nm, right_nm].
+    Computed via peak of first-order finite difference (no continuum removal).
+
+    For mangrove, the sigmoid rise from red absorption (~660 nm) to NIR
+    plateau (~760 nm) produces a sharp REIP around 710-730 nm. Non-vegetated
+    surfaces show a flatter red-edge with REIP absent or shifted.
+
+    Requires the full HDF5 cube (not the 5-band GeoTIFF), because ~19
+    contiguous narrow bands across 670-760 nm are needed.
+
+    Parameters
+    ----------
+    data         : dict from load_hdf5() with 'reflectance' (B,H,W) and
+                   'wavelengths' (B,)
+    left_nm      : start of red-edge window (nm), default 670
+    right_nm     : end of red-edge window (nm), default 760
+    tolerance_nm : tolerance for nearest-band matching
+
+    Returns
+    -------
+    2D np.ndarray (H, W) of REIP values in nm. NaN where spectrum is invalid.
+    """
+    wl   = data['wavelengths']
+    refl = data['reflectance']
+    H, W = refl.shape[1], refl.shape[2]
+
+    def _nearest_band(target):
+        idx = int(np.argmin(np.abs(wl - target)))
+        if np.abs(wl[idx] - target) > tolerance_nm:
+            raise ValueError(
+                f"No band within {tolerance_nm} nm of {target} nm "
+                f"(nearest = {wl[idx]:.1f} nm)"
+            )
+        return idx
+
+    i_left  = _nearest_band(left_nm)
+    i_right = _nearest_band(right_nm)
+
+    # Extract bands in window: shape (n_bands_window, H, W)
+    bands   = refl[i_left:i_right + 1].astype(np.float32)
+    wl_win  = wl[i_left:i_right + 1]
+    n_bands = bands.shape[0]
+
+    if n_bands < 3:
+        raise ValueError(
+            f"Only {n_bands} bands in [{left_nm}, {right_nm}] nm window -- "
+            "too few for derivative computation"
+        )
+
+    # First derivative: finite difference between adjacent bands
+    dR    = np.diff(bands, axis=0)                    # (n_bands-1, H, W)
+    dwl   = np.diff(wl_win)                           # wavelength step (nm)
+    deriv = dR / dwl[:, None, None]                   # normalize by step
+
+    # Wavelength at midpoint of each derivative interval
+    wl_mid = (wl_win[:-1] + wl_win[1:]) / 2.0        # (n_bands-1,)
+
+    # REIP = wavelength of peak derivative per pixel
+    peak_idx  = np.argmax(deriv, axis=0)              # (H, W)
+    reip_map  = wl_mid[peak_idx]                      # (H, W)
+
+    # Mask invalid pixels: any NaN/inf in the window -> NaN REIP
+    invalid = ~np.all(np.isfinite(bands), axis=0)
+    reip_map[invalid] = np.nan
+
+    # Mask pixels where peak derivative is non-positive (no real red-edge)
+    peak_deriv_vals = deriv[peak_idx,
+                            np.arange(H)[:, None],
+                            np.arange(W)[None, :]]
+    reip_map[peak_deriv_vals <= 0] = np.nan
+
+    n_valid = int(np.isfinite(reip_map).sum())
+    print(f"  REIP (red-edge inflection point):")
+    print(f"  window         : {wl_win[0]:.0f} - {wl_win[-1]:.0f} nm "
+          f"({n_bands} bands)")
+    print(f"  valid px       : {n_valid:,}")
+    print(f"  REIP range     : {np.nanmin(reip_map):.1f} to "
+          f"{np.nanmax(reip_map):.1f} nm")
+    print(f"  REIP mean      : {np.nanmean(reip_map):.1f} nm")
+
+    return reip_map.astype(np.float32)
+
+
 def compute_all_indices(data: dict) -> dict:
-    """Compute all 5 indices and return as dict of 2D arrays."""
+    """Compute all 5 spectral indices and return as dict of 2D arrays.
+
+    Note: REIP is not included here because it requires the full HDF5 cube
+    (load_hdf5 output), while these indices use the 5-band GeoTIFF
+    (load_geotiff_bands output). Call compute_reip() separately.
+    """
     return {
         'NDMI'  : compute_ndmi(data),
         'MNDWI' : compute_mndwi(data),
