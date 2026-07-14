@@ -210,7 +210,7 @@ def compute_scenario_b_indices(resampled_bands, savi_L=0.5):
     eps = 1e-10   # avoid division by zero
 
     ndmi  = (nir - swir1) / (nir + swir1 + eps)
-    mvi   = nir / (green * swir1 + eps)
+    mvi = (nir - green) / (swir1 - green + eps)
     mndwi = (green - swir1) / (green + swir1 + eps)
     savi  = ((nir - red) / (nir + red + savi_L + eps)) * (1 + savi_L)
 
