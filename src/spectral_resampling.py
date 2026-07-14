@@ -264,6 +264,12 @@ def write_scenario_b_outputs(indices_dict, reference_tif, out_dir, site_key):
     with rasterio.open(reference_tif) as ref:
         profile = ref.profile.copy()
 
+    # Remove tiling keys inherited from reference_tif that only apply to
+    # TILED=YES profiles; passing BLOCKXSIZE/BLOCKYSIZE without TILED=YES
+    # triggers a rasterio CPLE_IllegalArg warning.
+    for key in ('blockxsize', 'blockysize', 'tiled'):
+        profile.pop(key, None)
+
     profile.update(
         count    = len(band_order),
         dtype    = 'float32',
