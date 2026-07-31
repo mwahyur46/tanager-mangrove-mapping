@@ -1,6 +1,6 @@
 # tanager-mangrove-mapping
 
-**Transferable Mangrove Extent and Biomass Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
+**Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
 
 Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026).
 
@@ -8,7 +8,7 @@ Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/)
 
 ## Overview
 
-This repository implements a transferable framework for mangrove extent and biomass mapping using Tanager-1 hyperspectral imagery (426 bands, 380-2500 nm, 30 m resolution).
+This repository implements a transferable framework for mangrove extent mapping using Tanager-1 hyperspectral imagery (426 bands, 380-2500 nm, 30 m resolution).
 
 **Core innovation:** per-scene adaptive spectral threshold calibration via histogram bimodal detection (with Otsu fallback), eliminating the need for fixed thresholds from external studies and enabling transferability across geographic regions without retraining. Open water is masked via MNDWI before thresholding to keep bimodal peaks clean.
 
@@ -25,8 +25,7 @@ Tanager-1 HDF5 (data/raw/)
     └── Step 3: Hyperspectral feature (REIP) from full 426-band spectrum
     └── Step 4: Pseudo-labels (MVI ∧ NDMI) → RF + XGBoost (class-balanced)
                 feature stack = 5 indices + REIP
-    └── Step 5: GEDI L4A Fusion: wall-to-wall AGB + carbon map (Sangatta)
-    └── Step 6: Transferability: pipeline applied to 4 new sites, no retraining
+    └── Step 5: Transferability: pipeline applied to 4 new sites, no retraining
                 per-scene thresholds saved to outputs/results/thresholds_{scene_id}.json
 ```
 
@@ -34,7 +33,7 @@ Tanager-1 HDF5 (data/raw/)
 
 | Site | Scene ID | Role |
 |---|---|---|
-| Sangatta, Kutai Timur (Indonesia) | `20250302_030003_92_4001` | Training + GEDI fusion |
+| Sangatta, Kutai Timur (Indonesia) | `20250302_030003_92_4001` | Training |
 | Gujarat, India | `20250311_061550_53_4001` | Transferability |
 | El Salvador | `20250223_165546_32_4001` | Transferability |
 | Belize | `20250824_171857_84_4001` | Transferability |
@@ -45,17 +44,21 @@ Tanager-1 HDF5 (data/raw/)
 ```
 tanager-mangrove-mapping/
 ├── notebooks/
-│   ├── 01_preprocessing.ipynb       # HDF5 inspection, band extraction, indices, water mask, adaptive threshold, REIP
-│   ├── 02_classification.ipynb      # Pseudo-labels, RF + XGBoost (class-balanced), extent map
-│   ├── 03_gedi_fusion.ipynb         # GEDI L4A join, AGB regression, carbon map (Sangatta)
-│   └── 04_transferability.ipynb     # run_all_transfer_sites() → 4 sites, no retraining
+│   ├── 00_emit_data_inspector.ipynb  # Exploratory EMIT GeoTIFF inspection (spectral profiles, RGB composite)
+│   ├── 01_preprocessing.ipynb        # HDF5 inspection, band extraction, indices, adaptive threshold, REIP
+│   ├── 02_classification.ipynb       # Pseudo-labels, RF + XGBoost (class-balanced), extent map
+│   ├── 03_transferability.ipynb      # Zero-shot transfer to 4 sites, GMW v3 accuracy summary
+│   └── journal/                      # Scenario B ablation (journal publication only)
+│       ├── 01b_multispectral_equivalent.ipynb  # SRF convolution, S2-equivalent indices
+│       ├── 02b_classification.ipynb            # XGBoost on 4-feature stack (Sangatta)
+│       └── 03b_transferability.ipynb           # Scenario B transfer, Kappa A vs B comparison
 ├── src/
-│   ├── preprocessing.py             # HDF5 I/O, GeoTIFF conversion, indices, water mask, adaptive threshold
+│   ├── preprocessing.py             # HDF5 I/O, GeoTIFF conversion, indices, adaptive threshold, REIP
 │   ├── classification.py            # Pseudo-labels, RF + XGBoost, evaluation, compare_models
-│   ├── continuum.py                 # Red-edge Inflection Point (REIP) from full 426-band spectrum
 │   ├── evaluation.py                # Independent accuracy assessment vs GMW v3 (confusion, kappa, agreement maps)
-│   ├── gedi_utils.py                # GEDI loading, spatial join (vectorised), AGB regression, carbon conversion
-│   └── transferability.py           # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
+│   ├── transferability.py           # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
+│   ├── spectral_resampling.py       # S2A SRF convolution (journal/Scenario B only)
+│   └── gedi_utils.py                # GEDI helpers (unused — biomass out of scope)
 ├── data/
 │   ├── README_data.md               # Download instructions (no large files in repo)
 │   ├── raw/                         # HDF5 originals from Planet STAC (gitignored)
@@ -64,10 +67,10 @@ tanager-mangrove-mapping/
 │   └── gmw_v3/                      # GMW v3 validation subsets (.geojson)
 ├── outputs/
 │   ├── figures/                     # Maps + plots (150 dpi PNG)
-│   ├── models/                      # Trained RF + XGBoost + AGB regressor (.joblib)
+│   ├── models/                      # Trained RF + XGBoost (.joblib)
 │   └── results/                     # Accuracy tables (.csv), thresholds per scene (.json)
 ├── docs/
-│   └── technical_memo.pdf           # Methods write-up (W11-W12)
+│   └── technical_memo.pdf           # Methods write-up
 └── mangrove_tanager_final.ipynb     # Competition submission notebook
 ```
 
@@ -86,12 +89,11 @@ Run notebooks in order. Each notebook saves outputs consumed by the next.
 
 | Notebook | Key input | Key output |
 |---|---|---|
-| `01_preprocessing` | `data/raw/{scene_id}.h5` | `data/processed/*_bands.tif`, `reip_*.tif`, `outputs/results/thresholds_*.json` |
-| `02_classification` | processed GeoTIFFs + REIP + thresholds JSON | `outputs/models/rf_*.joblib`, `xgb_*.joblib`, `data/processed/extent_mangrove_*.tif` |
-| `03_gedi_fusion` | extent map + `data/raw/gedi_l4a_sangatta.geojson` | `data/processed/agb_map_*.tif`, `carbon_map_*.tif` |
-| `04_transferability` | RF/XGBoost model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary.csv` |
+| `01_preprocessing` | `data/raw/{site}_{scene_id}_ortho_sr_hdf5.h5` | `data/processed/*_bands.tif`, `candidate_*.tif`, `reip_*.tif`, `outputs/results/thresholds_*.json` |
+| `02_classification` | processed GeoTIFFs + REIP + thresholds JSON | `outputs/models/rf_*.joblib`, `xgb_tuned_*.joblib`, `data/processed/extent_mangrove_*.tif`, `outputs/results/gmw_eval_*.csv` |
+| `03_transferability` | XGBoost model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary_xgboost.csv` |
 
-**Before running notebook 01:** call `inspect_hdf5()` on your Tanager `.h5` file and verify the path constants in `src/preprocessing.py` (`REFLECTANCE_PATH`, `WAVELENGTH_PATH`, `LON_PATH`, `LAT_PATH`) match your file's internal structure.
+**Before running notebook 01:** call `inspect_hdf5()` on your Tanager `.h5` file and verify that `REFLECTANCE_PATH = 'HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance'` matches your file's internal structure (note the literal space in "Data Fields").
 
 ## License
 
