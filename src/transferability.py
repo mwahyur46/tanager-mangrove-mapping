@@ -273,9 +273,12 @@ def run_all_transfer_sites(processed_dir: str,
     print(f"\n{'='*60}")
     print("  Transfer summary:")
     cols = ['site', 'area_ha', 'n_mangrove_px']
-    if 'kappa' in df.columns:
-        cols += ['kappa', 'f1', 'recall']
-    print(df[cols].to_string(index=False))
+    if not df.empty:
+        if 'kappa' in df.columns:
+            cols += ['kappa', 'f1', 'recall']
+        print(df[cols].to_string(index=False))
+    else:
+        print("  [No successful transfers]")
 
     if failed:
         print(f"\n  Failed ({len(failed)}):")
