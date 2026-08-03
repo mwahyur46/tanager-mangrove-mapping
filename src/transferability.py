@@ -71,6 +71,8 @@ def _resample_to_grid(src_array, src_transform, src_crs,
     return dst
 
 
+
+
 # =============================================================================
 # Single-scene transfer
 # =============================================================================
@@ -141,13 +143,30 @@ def run_transfer_scene(site: str,
     # 4. Load pre-trained model
     model = load_model(model_path)
 
+    # 4.5 Load REIP feature if it exists (for 9-feature models)
+    reip_path = processed_dir / f'reip_{site}_{scene_id}.tif'
+    extra_features = None
+    has_reip = False
+    
+    if reip_path.exists():
+        has_reip = True
+        dst_shape     = list(indices.values())[0].shape
+        dst_transform = data['transform']
+        dst_crs       = data['crs']
+        with rasterio.open(reip_path) as src:
+            reip_map_r = _resample_to_grid(
+                src.read(1), src.transform, src.crs,
+                dst_shape, dst_transform, dst_crs
+            )
+        extra_features = {'REIP': reip_map_r}
+
     # 5. Predict extent
     h, w       = list(indices.values())[0].shape
     extent_map = predict_extent(
         model, indices,
         original_shape=(h, w),
         candidate_mask=candidate_mask,
-        extra_features=None,
+        extra_features=extra_features,
     )
 
     # 7. Save extent GeoTIFF
@@ -174,7 +193,7 @@ def run_transfer_scene(site: str,
         'area_ha'       : area_ha,
         'thresholds'    : thresholds,
         'extent_path'   : str(extent_path),
-        'has_reip'      : False,
+        'has_reip'      : has_reip,
     }
 
     # 8. Evaluate against GMW v3 (optional)
