@@ -4,26 +4,10 @@
 # spectral indices, adaptive threshold
 # =============================================================================
 
-import os
 import re
 import h5py
 import numpy as np
 import xarray as xr
-
-# ---------------------------------------------------------------------------
-# Fix PROJ database version mismatch: force GDAL/rasterio to use the same
-# proj.db that pyproj ships with, preventing the "DATABASE.LAYOUT.VERSION.MINOR
-# = 2 whereas >= 6 is expected" error that occurs when another PROJ installation
-# (e.g. QGIS, OSGeo4W) pollutes the search path.
-# ---------------------------------------------------------------------------
-try:
-    import pyproj
-    _proj_data = pyproj.datadir.get_data_dir()
-    os.environ.setdefault('PROJ_LIB',  _proj_data)
-    os.environ.setdefault('PROJ_DATA', _proj_data)
-except Exception:
-    pass
-
 import rasterio
 from rasterio.transform import from_bounds
 from rasterio.transform import Affine
@@ -43,21 +27,24 @@ from skimage.filters import threshold_otsu
 # based on the original definitions of each spectral index.
 #
 # References (band positions in nm):
-#   Green    560  : Xu (2006) MNDWI               doi:10.1080/01431160600589179
-#   Red      660  : Huete (1988) SAVI, NDVI        doi:10.1016/0034-4257(88)90106-X
-#   RedEdge  720  : Rouse et al. (1974) NDRE       doi:10.1080/01431160600589179
-#   NIR      860  : Gao (1996) NDMI                doi:10.1016/S0034-4257(96)00067-3
-#                   Huete (1988) NDVI, SAVI         doi:10.1016/0034-4257(88)90106-X
-#   SWIR1   1640  : Xu (2006) MNDWI                doi:10.1080/01431160600589179
-#                   Gao (1996) NDMI                 doi:10.1016/S0034-4257(96)00067-3
+#   Green 560  : Xu (2006) MNDWI definition           doi:10.1080/01431160600589179
+#                Baloloy et al. (2020) MVI            doi:10.1016/j.isprsjprs.2020.06.001
+#   Red   660  : Huete (1988) SAVI                    doi:10.1016/0034-4257(88)90106-X
+#   NIR   860  : Gao (1996) NDWI/NDMI                 doi:10.1016/S0034-4257(96)00067-3
+#                Baloloy et al. (2020) MVI            doi:10.1016/j.isprsjprs.2020.06.001
+#                Huete (1988) SAVI                    doi:10.1016/0034-4257(88)90106-X
+#                Rahmila et al. (2026) EMI            doi:10.1080/21580103.2026.2616443
+#   SWIR1 1640 : Xu (2006) MNDWI                      doi:10.1080/01431160600589179
+#                Baloloy et al. (2020) MVI            doi:10.1016/j.isprsjprs.2020.06.001
+#                Gao (1996) NDMI                      doi:10.1016/S0034-4257(96)00067-3
+#   SWIR2 2200 : Rahmila et al. (2026) EMI            doi:10.1080/21580103.2026.2616443
 # =============================================================================
 RELEVANT_WAVELENGTHS = {
-    'green'    : 560,    # MNDWI, MVI
-    'red'      : 660,    # NDVI, SAVI, CMRI
-    'rededge'  : 720,    # NDRE
-    'nir'      : 860,    # NDVI, NDMI, SAVI, CMRI, NDRE, EMI, MVI
-    'swir1'    : 1640,   # MNDWI, NDMI, MVI
-    'swir2'    : 2200,   # EMI
+    'green' : 560,    # MNDWI, MVI
+    'red'   : 660,    # SAVI
+    'nir'   : 860,    # NDMI, MVI, SAVI, EMI
+    'swir1' : 1640,   # NDMI, MNDWI, MVI
+    'swir2' : 2200,   # EMI
 }
 
 
@@ -139,14 +126,8 @@ def load_hdf5(filepath: str) -> dict:
         wavelengths = np.linspace(380, 2500, reflectance.shape[0]).astype(np.float32)
 
         # CRS — read epsg_code dynamically (varies per scene/UTM zone)
-        # Use pyproj.CRS → WKT → rasterio.CRS to bypass the GDAL/rasterio
-        # PROJ database version conflict that arises when another PROJ
-        # installation (e.g. a user-level pip rasterio) is on sys.path.
-        # pyproj resolves EPSG codes via its own bundled proj.db (correct
-        # version); rasterio.CRS.from_wkt() needs no EPSG lookup at all.
         epsg = int(f['HDFEOS/GRIDS/HYP'].attrs['epsg_code'])
-        _pyproj_crs = pyproj.CRS.from_epsg(epsg)
-        crs = CRS.from_wkt(_pyproj_crs.to_wkt())
+        crs  = CRS.from_epsg(epsg)
 
         # Geotransform — parse UL corner + pixel size from StructMetadata
         meta      = f['HDFEOS INFORMATION/StructMetadata.0'][()].decode()
@@ -350,85 +331,36 @@ def _get_band(data: dict, band_name: str) -> np.ndarray:
     return bands[band_name].astype(np.float32)
 
 
-def compute_ndvi(data: dict) -> np.ndarray:
-    """
-    NDVI = (NIR - Red) / (NIR + Red)
-    Reference: Rouse et al. (1974)
-    """
-    nir = _get_band(data, 'nir')
-    red = _get_band(data, 'red')
-    return np.clip((nir - red) / (nir + red + 1e-10), -1, 1)
-
-
-def compute_mndwi(data: dict) -> np.ndarray:
-    """
-    MNDWI = (Green - SWIR1) / (Green + SWIR1)
-    Reference: Xu (2006) doi:10.1080/01431160600589179
-    """
-    green, swir1 = _get_band(data, 'green'), _get_band(data, 'swir1')
-    return np.clip((green - swir1) / (green + swir1 + 1e-10), -1, 1)
-
-
 def compute_ndmi(data: dict) -> np.ndarray:
-    """
-    NDMI = (NIR - SWIR1) / (NIR + SWIR1)
-    Reference: Gao (1996) doi:10.1016/S0034-4257(96)00067-3
-    """
+    """NDMI = (NIR - SWIR1) / (NIR + SWIR1)"""
     nir, swir1 = _get_band(data, 'nir'), _get_band(data, 'swir1')
     return np.clip((nir - swir1) / (nir + swir1 + 1e-10), -1, 1)
 
 
-def compute_cmri(data: dict) -> np.ndarray:
-    """
-    CMRI = NDVI - MNDWI
-    Combined Mangrove Recognition Index.
-    Derived entirely from NDVI and MNDWI; no additional band is needed.
-    Note: CMRI is used as a classifier feature only and is NOT exported
-    to the multiband GeoTIFF (RELEVANT_WAVELENGTHS) to avoid redundancy.
-    Reference: Rijal & Saintilan (2026)
-    """
-    return compute_ndvi(data) - compute_mndwi(data)
-
-
-def compute_ndre(data: dict) -> np.ndarray:
-    """
-    NDRE = (NIR - RedEdge) / (NIR + RedEdge)
-    Normalized Difference Red-Edge index.
-    Requires the 720 nm red-edge band exported in RELEVANT_WAVELENGTHS.
-    Reference: Rouse et al. (1974)
-    """
-    nir      = _get_band(data, 'nir')
-    rededge  = _get_band(data, 'rededge')
-    return np.clip((nir - rededge) / (nir + rededge + 1e-10), -1, 1)
-
-
-def compute_savi(data: dict, L: float = 0.5) -> np.ndarray:
-    """
-    SAVI = 1.5 * (NIR - Red) / (NIR + Red + L)
-    Soil-Adjusted Vegetation Index with L=0.5 (intermediate vegetation cover).
-    Reference: Huete (1988) doi:10.1016/0034-4257(88)90106-X
-    """
-    nir = _get_band(data, 'nir')
-    red = _get_band(data, 'red')
-    return np.clip((1 + L) * (nir - red) / (nir + red + L + 1e-10), -1, 1)
+def compute_mndwi(data: dict) -> np.ndarray:
+    """MNDWI = (Green - SWIR1) / (Green + SWIR1)"""
+    green, swir1 = _get_band(data, 'green'), _get_band(data, 'swir1')
+    return np.clip((green - swir1) / (green + swir1 + 1e-10), -1, 1)
 
 
 def compute_mvi(data: dict) -> np.ndarray:
-    """
-    MVI = (NIR - Green) / (SWIR1 - Green)
-    Mangrove Vegetation Index.
-    Reference: Baloloy et al. (2020)
-    """
+    """MVI = (NIR - Green) / (SWIR1 - Green)"""
     nir   = _get_band(data, 'nir')
     green = _get_band(data, 'green')
     swir1 = _get_band(data, 'swir1')
     return np.clip((nir - green) / (swir1 - green + 1e-10), -1, 20)
 
 
+def compute_savi(data: dict, L: float = 0.5) -> np.ndarray:
+    """SAVI = ((NIR - Red) / (NIR + Red + L)) * (1 + L)"""
+    nir = _get_band(data, 'nir')
+    red = _get_band(data, 'red')
+    return np.clip(((nir - red) / (nir + red + L + 1e-10)) * (1 + L), -1, 1)
+
+
 def compute_emi(data: dict) -> np.ndarray:
     """
     EMI = (NIR - SWIR2) / (NIR + SWIR2)
-    Enhanced Mangrove Index.
     Reference: Rahmila et al. (2026) doi:10.1080/21580103.2026.2616443
     """
     nir   = _get_band(data, 'nir')
@@ -437,116 +369,14 @@ def compute_emi(data: dict) -> np.ndarray:
 
 
 def compute_all_indices(data: dict) -> dict:
-    """
-    Compute all 8 spectral indices and return as dict of 2D arrays.
-
-    Index set: NDVI, MNDWI, NDMI, CMRI, NDRE, SAVI, MVI, EMI
-    CMRI is derived from NDVI and MNDWI (no extra exported band needed).
-    """
+    """Compute all 5 indices and return as dict of 2D arrays."""
     return {
-        'NDVI'  : compute_ndvi(data),
-        'MNDWI' : compute_mndwi(data),
         'NDMI'  : compute_ndmi(data),
-        'CMRI'  : compute_cmri(data),
-        'NDRE'  : compute_ndre(data),
-        'SAVI'  : compute_savi(data),
+        'MNDWI' : compute_mndwi(data),
         'MVI'   : compute_mvi(data),
+        'SAVI'  : compute_savi(data),
         'EMI'   : compute_emi(data),
     }
-
-
-# =============================================================================
-# 3b. Red-edge Inflection Point (REIP)
-# =============================================================================
-
-REIP_WINDOW = {'left_nm': 670.0, 'right_nm': 760.0}
-
-
-def compute_reip(data: dict,
-                 left_nm: float = 670.0,
-                 right_nm: float = 760.0,
-                 tolerance_nm: float = 10.0) -> np.ndarray:
-    """
-    Compute Red-edge Inflection Point (REIP) per pixel.
-
-    REIP is the wavelength at which the first derivative of the reflectance
-    spectrum reaches its maximum within the red-edge region [left_nm, right_nm].
-    It is computed by finding the peak of the first-order finite difference
-    across all bands in the window.
-
-    Parameters
-    ----------
-    data        : dict from load_hdf5() with 'reflectance' (B,H,W) and
-                  'wavelengths' (B,)
-    left_nm     : start of red-edge window (nm), default 670
-    right_nm    : end of red-edge window (nm), default 760
-    tolerance_nm: tolerance for nearest-band matching
-
-    Returns
-    -------
-    2D np.ndarray (H, W) of REIP values in nm. NaN where spectrum is invalid
-    or no clear inflection point found.
-    """
-    wl   = data['wavelengths']
-    refl = data['reflectance']
-    H, W = refl.shape[1], refl.shape[2]
-
-    def _nearest_band(target):
-        idx = int(np.argmin(np.abs(wl - target)))
-        if np.abs(wl[idx] - target) > tolerance_nm:
-            raise ValueError(
-                f"No band within {tolerance_nm} nm of {target} nm "
-                f"(nearest = {wl[idx]:.1f} nm)"
-            )
-        return idx
-
-    i_left  = _nearest_band(left_nm)
-    i_right = _nearest_band(right_nm)
-
-    # Extract bands in window: shape (n_bands_window, H, W)
-    bands   = refl[i_left:i_right + 1].astype(np.float32)
-    wl_win  = wl[i_left:i_right + 1]
-    n_bands = bands.shape[0]
-
-    if n_bands < 3:
-        raise ValueError(
-            f"Only {n_bands} bands in [{left_nm}, {right_nm}] nm window -- "
-            "too few for derivative computation"
-        )
-
-    # First derivative: finite difference between adjacent bands
-    # Shape: (n_bands-1, H, W)
-    dR    = np.diff(bands, axis=0)
-    dwl   = np.diff(wl_win)                   # wavelength step per interval (nm)
-    deriv = dR / dwl[:, None, None]            # normalize by wavelength step
-
-    # Wavelength at midpoint of each derivative interval
-    wl_mid = (wl_win[:-1] + wl_win[1:]) / 2.0  # shape (n_bands-1,)
-
-    # REIP = wavelength of peak derivative per pixel
-    peak_idx  = np.argmax(deriv, axis=0)       # shape (H, W)
-    reip_map  = wl_mid[peak_idx]               # shape (H, W)
-
-    # Mask invalid pixels: any NaN/inf in the window -> NaN REIP
-    invalid = ~np.all(np.isfinite(bands), axis=0)
-    reip_map[invalid] = np.nan
-
-    # Also mask pixels where peak derivative is non-positive (no real red-edge)
-    peak_deriv_vals = deriv[peak_idx,
-                            np.arange(H)[:, None],
-                            np.arange(W)[None, :]]
-    reip_map[peak_deriv_vals <= 0] = np.nan
-
-    n_valid = int(np.isfinite(reip_map).sum())
-    print(f"  REIP (red-edge inflection point):")
-    print(f"  window         : {wl_win[0]:.0f} - {wl_win[-1]:.0f} nm "
-          f"({n_bands} bands)")
-    print(f"  valid px       : {n_valid:,}")
-    print(f"  REIP range     : {np.nanmin(reip_map):.1f} to "
-          f"{np.nanmax(reip_map):.1f} nm")
-    print(f"  REIP mean      : {np.nanmean(reip_map):.1f} nm")
-
-    return reip_map.astype(np.float32)
 
 
 # =============================================================================

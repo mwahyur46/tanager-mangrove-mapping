@@ -7,6 +7,22 @@ formatting — shared across all visualization cells in the competition and
 journal notebooks to ensure a consistent look across all map panels.
 """
 
+import os
+
+# ---------------------------------------------------------------------------
+# Fix PROJ database version mismatch: force GDAL/rasterio to use the same
+# proj.db that pyproj ships with, preventing the "DATABASE.LAYOUT.VERSION.MINOR
+# = 2 whereas >= 6 is expected" error that occurs when another PROJ installation
+# (e.g. QGIS, OSGeo4W, user pip env) pollutes the search path.
+# ---------------------------------------------------------------------------
+try:
+    import pyproj
+    _proj_data = pyproj.datadir.get_data_dir()
+    os.environ.setdefault('PROJ_LIB',  _proj_data)
+    os.environ.setdefault('PROJ_DATA', _proj_data)
+except Exception:
+    pass
+
 import numpy as np
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
@@ -27,20 +43,28 @@ def reproject_raster_to_4326(src, band=1):
         Tuple of (img_data, extent) where img_data is a float32 2-D array
         and extent is [left, right, bottom, top] in geographic degrees.
     """
-    if src.crs and src.crs.to_string() != DST_CRS:
-        transform, width, height = calculate_default_transform(
-            src.crs, DST_CRS, src.width, src.height, *src.bounds
-        )
-        img_data = np.empty((height, width), dtype=np.float32)
-        reproject(
-            source=rasterio.band(src, band),
-            destination=img_data,
-            src_transform=src.transform,
-            src_crs=src.crs,
-            dst_transform=transform,
-            dst_crs=DST_CRS,
-            resampling=Resampling.nearest,
-        )
+    from rasterio.crs import CRS as RasterioCRS
+    import pyproj
+    with rasterio.Env():
+        # Bypass rasterio's PROJ DB lookup entirely by using pyproj
+        _pyproj_4326 = pyproj.CRS.from_epsg(4326)
+        dst_crs_obj = RasterioCRS.from_wkt(_pyproj_4326.to_wkt())
+        
+    if src.crs and src.crs.to_string() != DST_CRS and src.crs != dst_crs_obj:
+        with rasterio.Env():
+            transform, width, height = calculate_default_transform(
+                src.crs, dst_crs_obj, src.width, src.height, *src.bounds
+            )
+            img_data = np.empty((height, width), dtype=np.float32)
+            reproject(
+                source=rasterio.band(src, band),
+                destination=img_data,
+                src_transform=src.transform,
+                src_crs=src.crs,
+                dst_transform=transform,
+                dst_crs=dst_crs_obj,
+                resampling=Resampling.nearest,
+            )
         left   = transform.c
         right  = transform.c + transform.a * width
         top    = transform.f
@@ -68,8 +92,14 @@ def reproject_array_to_4326(arr, crs, transform):
         and extent is [left, right, bottom, top] in geographic degrees.
     """
     from rasterio.crs import CRS as RasterioCRS
+    import pyproj
 
-    src_crs = crs if hasattr(crs, 'to_epsg') else RasterioCRS.from_user_input(crs)
+    with rasterio.Env():
+        src_crs = crs if hasattr(crs, 'to_epsg') else RasterioCRS.from_user_input(crs)
+        # Bypass rasterio's PROJ DB lookup entirely by using pyproj
+        _pyproj_4326 = pyproj.CRS.from_epsg(4326)
+        dst_crs_obj = RasterioCRS.from_wkt(_pyproj_4326.to_wkt())
+
     h, w    = arr.shape
     src_arr = arr.astype(np.float32)
 
@@ -78,23 +108,24 @@ def reproject_array_to_4326(arr, crs, transform):
     right  = transform.c + transform.a * w
     bottom = transform.f + transform.e * h   # e is negative for north-up
 
-    if src_crs.to_string() == DST_CRS:
+    if src_crs.to_string() == DST_CRS or src_crs == dst_crs_obj:
         return src_arr, [left, right, bottom, top]
 
-    dst_transform, dst_width, dst_height = calculate_default_transform(
-        src_crs, DST_CRS, w, h,
-        left=left, bottom=bottom, right=right, top=top,
-    )
-    dst_arr = np.empty((dst_height, dst_width), dtype=np.float32)
-    reproject(
-        source=src_arr,
-        destination=dst_arr,
-        src_transform=transform,
-        src_crs=src_crs,
-        dst_transform=dst_transform,
-        dst_crs=DST_CRS,
-        resampling=Resampling.nearest,
-    )
+    with rasterio.Env():
+        dst_transform, dst_width, dst_height = calculate_default_transform(
+            src_crs, dst_crs_obj, w, h,
+            left=left, bottom=bottom, right=right, top=top,
+        )
+        dst_arr = np.empty((dst_height, dst_width), dtype=np.float32)
+        reproject(
+            source=src_arr,
+            destination=dst_arr,
+            src_transform=transform,
+            src_crs=src_crs,
+            dst_transform=dst_transform,
+            dst_crs=dst_crs_obj,
+            resampling=Resampling.nearest,
+        )
     dst_left   = dst_transform.c
     dst_right  = dst_transform.c + dst_transform.a * dst_width
     dst_top    = dst_transform.f

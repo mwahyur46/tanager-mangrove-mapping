@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "AOI_Australia_20250608_014315_58_4001",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": "20250608_014315_58_4001", "title": "TanagerScene 20250608_014315_58_4001 Core Imagery", "datetime": "2025/06/08 01:43:15.582", "start_date": null, "end_dateti": null, "collection": "coastal-water-bodies", "collecti_1": "Coastal and Water Bodies", "catalog_id": "tanager-core-imagery", "catalog_ti": "Planet Tanager Sample Products", "stac_href": "https://www.planet.com/data/stac/tanager-core-imagery/coastal-water-bodies/20250608_014315_58_4001/20250608_014315_58_4001.json", "asset_coun": 9, "asset_keys": "basic_beta_udm,basic_radiance_hdf5,basic_sr_hdf5,geolocation_array,ortho_beta_udm,ortho_radiance_hdf5,ortho_sr_hdf5,ortho_visual,thumbnail" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ 136.500893478823912, -15.704085369567002 ], [ 136.72768591319192, -15.738284655628789 ], [ 136.697795184179938, -15.883575280508039 ], [ 136.472170987124116, -15.846508547744259 ], [ 136.500893478823912, -15.704085369567002 ] ] ] ] } }
+]
+}

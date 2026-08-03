@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "AOI_Belize_20250824_171853_67_4001",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": "20250824_171853_67_4001", "title": "TanagerScene 20250824_171853_67_4001 Core Imagery", "datetime": "2025/08/24 17:18:53.676", "start_date": null, "end_dateti": null, "collection": "urban", "collecti_1": "Urban", "catalog_id": "tanager-core-imagery", "catalog_ti": "Planet Tanager Sample Products", "stac_href": "https://www.planet.com/data/stac/tanager-core-imagery/urban/20250824_171853_67_4001/20250824_171853_67_4001.json", "asset_coun": 9, "asset_keys": "basic_beta_udm,basic_radiance_hdf5,basic_sr_hdf5,geolocation_array,ortho_beta_udm,ortho_radiance_hdf5,ortho_sr_hdf5,ortho_visual,thumbnail" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -88.435470427127839, 18.636982227138631 ], [ -88.249445116773217, 18.601735851640555 ], [ -88.280011921632962, 18.456015761755019 ], [ -88.465622435116927, 18.491052576270565 ], [ -88.435470427127839, 18.636982227138631 ] ] ] ] } }
+]
+}
