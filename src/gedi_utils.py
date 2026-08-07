@@ -110,7 +110,7 @@ def spatial_join_gedi_tanager(gedi_gdf: gpd.GeoDataFrame,
         df[fname] = indices[fname][rows_px, cols_px].astype(np.float32)
 
     df = df.replace([np.inf, -np.inf], np.nan).dropna()
-    print(f"  Joined footprints : {len(df):,} valid samples")
+    print(f"  Joined footprints: {len(df):,} valid samples")
     return df
 
 
@@ -130,7 +130,10 @@ def train_agb_regressor(df: pd.DataFrame,
     ----------
     df            : DataFrame from spatial_join_gedi_tanager()
     feature_names : list of index column names to use as features
-    n_estimators  : number of trees
+    n_estimators  : int
+        Number of trees (default 200).
+    random_state  : int
+        Random seed for reproducibility (default 42).
 
     Returns
     -------
@@ -245,11 +248,30 @@ def agb_to_carbon(agb_map: np.ndarray,
 # =============================================================================
 
 def save_regressor(model, filepath: str):
-    """Save regressor to .joblib — path: outputs/models/"""
+    """
+    Save AGB regressor to .joblib.
+
+    Parameters
+    ----------
+    model    : fitted RandomForestRegressor from train_agb_regressor()
+    filepath : str
+        Destination path (e.g. outputs/models/agb_regressor_sangatta.joblib).
+    """
     joblib.dump(model, filepath)
-    print(f"  Regressor saved: {filepath}")
+    print(f"  Regressor saved : {filepath}")
 
 
 def load_regressor(filepath: str):
-    """Load regressor from .joblib"""
+    """
+    Load AGB regressor from .joblib.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to saved .joblib file.
+
+    Returns
+    -------
+    Fitted RandomForestRegressor.
+    """
     return joblib.load(filepath)

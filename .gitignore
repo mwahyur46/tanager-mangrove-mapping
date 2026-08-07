@@ -43,5 +43,8 @@ Thumbs.db
 
 # Claude Code
 CLAUDE.md
+CLAUDE_v0.md
 .claude/
 GEMINI.md
+.agents/
+references/

@@ -3,7 +3,6 @@
 **Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
 
 Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026).
-
 ---
 
 ## Overview
@@ -19,7 +18,7 @@ This repository implements a transferable framework for mangrove extent mapping 
 ```
 Tanager-1 HDF5 (data/raw/)
     └── Step 0: inspect_hdf5() → HDF5 → GeoTIFF (5 bands) → data/processed/
-    └── Step 1: Spectral Indices (NDMI, MNDWI, MVI, SAVI, EMI)
+    └── Step 1: Spectral Indices (NDVI, MNDWI, NDMI, CMRI, NDRE, SAVI, MVI, EMI)
     └── Step 2: Water mask (MNDWI) + Adaptive Threshold per scene  ← core innovation
                 bimodal valley detection; Otsu fallback if unimodal (MVI forced Otsu)
     └── Step 3: Hyperspectral feature (REIP) from full 426-band spectrum

@@ -18,7 +18,7 @@ submission.
 
 Authors     : Muhammad Wahyu Ramadhan, Athar Abdurrahman B., Diniyarti
 Competition : Planet Tanager Open Data Competition 2026
-Topic       : Transferable Mangrove Extent and Biomass Mapping Using
+Topic       : Transferable Mangrove Extent Mapping Using
               Adaptive Spectral Thresholds
 Date        : July 2026
 """
@@ -137,7 +137,7 @@ def resample_hyperspectral_to_s2(tanager_stack, tanager_wavelengths,
     Returns
     -------
     dict
-        Keys: 'green', 'red', 'nir', 'swir1'.
+        Keys: 'green', 'red', 'rededge', 'nir', 'swir1', 'swir2'.
         Values: 2D float32 ndarrays of resampled reflectance.
     """
     n_bands, h, w = tanager_stack.shape

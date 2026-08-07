@@ -35,13 +35,17 @@ def reproject_raster_to_4326(src, band=1):
     """
     Reprojects a single-band raster to EPSG:4326 on-the-fly.
 
-    Args:
-        src:  An open rasterio dataset.
-        band: Band index to read (1-based, default 1).
+    Parameters
+    ----------
+    src  : open rasterio dataset
+    band : int
+        Band index to read (1-based, default 1).
 
-    Returns:
-        Tuple of (img_data, extent) where img_data is a float32 2-D array
-        and extent is [left, right, bottom, top] in geographic degrees.
+    Returns
+    -------
+    tuple of (img_data, extent)
+        img_data is a float32 2-D array; extent is
+        [left, right, bottom, top] in geographic degrees.
     """
     from rasterio.crs import CRS as RasterioCRS
     import pyproj
@@ -81,15 +85,19 @@ def reproject_array_to_4326(arr, crs, transform):
     Reprojects an in-memory single-band numpy array to EPSG:4326 on-the-fly.
     Useful when the array is already in memory (not yet written to a GeoTIFF).
 
-    Args:
-        arr:       2-D numpy array (H, W).
-        crs:       Source CRS — a rasterio CRS object or anything accepted by
-                   rasterio.crs.CRS.from_user_input().
-        transform: Affine transform of the source array.
+    Parameters
+    ----------
+    arr       : np.ndarray, shape (H, W)
+    crs       : rasterio CRS or anything accepted by CRS.from_user_input()
+        Source coordinate reference system.
+    transform : affine.Affine
+        Affine transform of the source array.
 
-    Returns:
-        Tuple of (img_data, extent) where img_data is a float32 2-D array
-        and extent is [left, right, bottom, top] in geographic degrees.
+    Returns
+    -------
+    tuple of (img_data, extent)
+        img_data is a float32 2-D array; extent is
+        [left, right, bottom, top] in geographic degrees.
     """
     from rasterio.crs import CRS as RasterioCRS
     import pyproj
@@ -140,14 +148,17 @@ def reproject_rgb_composite_to_4326(src, bands):
     contrast stretch on valid pixels, reprojects on-the-fly to EPSG:4326,
     and returns an RGBA array plus extent.
 
-    Args:
-        src:   An open rasterio dataset.
-        bands: List of 3 band identifiers — integers (1-based) or strings
-               such as 'B8', 'B11', 'B4'.
+    Parameters
+    ----------
+    src   : open rasterio dataset
+    bands : list of 3 band identifiers — integers (1-based) or strings
+        such as 'B8', 'B11', 'B4'.
 
-    Returns:
-        Tuple of (rgba_img, extent) where rgba_img is (H, W, 4) float32
-        in [0, 1] and extent is [left, right, bottom, top].
+    Returns
+    -------
+    tuple of (rgba_img, extent)
+        rgba_img is (H, W, 4) float32 in [0, 1]; alpha=0 for nodata pixels.
+        extent is [left, right, bottom, top] in geographic degrees.
     """
     import re
 
@@ -241,11 +252,19 @@ def format_map_axes(ax, fontsize=11, spine_color='black', spine_width=2):
     longitude/latitude labels, tick locators, degree formatters,
     rotated Y-axis labels, and optional spine styling.
 
-    Args:
-        ax:          Matplotlib axes object.
-        fontsize:    Font size for axis labels and tick labels.
-        spine_color: Color for all four spines (pass None to skip styling).
-        spine_width: Line width for spines.
+    Parameters
+    ----------
+    ax          : matplotlib.axes.Axes
+    fontsize    : int
+        Font size for axis labels and tick labels (default 11).
+    spine_color : str or None
+        Color for all four spines. Pass None to skip spine styling.
+    spine_width : float
+        Line width for spines (default 2).
+
+    Returns
+    -------
+    None
     """
     ax.set_xlabel('Longitude', fontsize=fontsize)
     ax.set_ylabel('Latitude', fontsize=fontsize)
