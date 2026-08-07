@@ -3,11 +3,12 @@
 **Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
 
 Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026).
+
 ---
 
 ## Overview
 
-This repository implements a transferable framework for mangrove extent mapping using Tanager-1 hyperspectral imagery (426 bands, 380-2500 nm, 30 m resolution).
+This repository implements a transferable framework for mangrove extent mapping using Tanager-1 hyperspectral imagery (426 bands, 380–2500 nm, 30 m resolution).
 
 **Core innovation:** per-scene adaptive spectral threshold calibration via histogram bimodal detection (with Otsu fallback), eliminating the need for fixed thresholds from external studies and enabling transferability across geographic regions without retraining. Open water is masked via MNDWI before thresholding to keep bimodal peaks clean.
 
@@ -17,60 +18,81 @@ This repository implements a transferable framework for mangrove extent mapping 
 
 ```
 Tanager-1 HDF5 (data/raw/)
-    └── Step 0: inspect_hdf5() → HDF5 → GeoTIFF (5 bands) → data/processed/
-    └── Step 1: Spectral Indices (NDVI, MNDWI, NDMI, CMRI, NDRE, SAVI, MVI, EMI)
-    └── Step 2: Water mask (MNDWI) + Adaptive Threshold per scene  ← core innovation
+    └── Step 1: Band extraction → GeoTIFF (6 bands) → data/processed/
+    └── Step 2: Spectral indices (NDVI, MNDWI, NDMI, CMRI, NDRE, SAVI, MVI, EMI)
+    └── Step 3: REIP from full 426-band spectrum (hyperspectral-only feature)
+    └── Step 4: Coastal candidate mask (MNDWI + SAVI Otsu, 500 m distance cap)
+    └── Step 5: Per-scene adaptive threshold  ← core innovation
                 bimodal valley detection; Otsu fallback if unimodal (MVI forced Otsu)
-    └── Step 3: Hyperspectral feature (REIP) from full 426-band spectrum
-    └── Step 4: Pseudo-labels (MVI ∧ NDMI) → RF + XGBoost (class-balanced)
-                feature stack = 5 indices + REIP
-    └── Step 5: Transferability: pipeline applied to 4 new sites, no retraining
-                per-scene thresholds saved to outputs/results/thresholds_{scene_id}.json
+    └── Step 6: Pseudo-labels (MVI ∧ NDMI) → XGBoost (9 features: 8 indices + REIP)
+    └── Step 7: Zero-shot transfer to 5 scenes — no retraining
 ```
 
 ## Study Sites
 
 | Site | Scene ID | Role |
 |---|---|---|
-| Sangatta, Kutai Timur (Indonesia) | `20250302_030003_92_4001` | Training |
-| Gujarat, India | `20250311_061550_53_4001` | Transferability |
-| El Salvador | `20250223_165546_32_4001` | Transferability |
-| Belize | `20250824_171857_84_4001` | Transferability |
-| Australia | `20250608_014315_58_4001` | Transferability |
+| Sangatta, Kutai Timur (Indonesia) | `20250302_030003_92_4001` | Training anchor |
+| Gujarat, India | `20250311_061550_53_4001` | Transfer site 1 |
+| El Salvador | `20250223_165546_32_4001` | Transfer site 2 |
+| Belize (strip 1) | `20250824_171853_67_4001` | Transfer site 3a |
+| Belize (strip 2) | `20250824_171857_84_4001` | Transfer site 3b |
+| Australia | `20250608_014315_58_4001` | Transfer site 4 |
+
+## Results
+
+### Training site — Sangatta (vs. GMW v3)
+
+| Model | OA | Kappa | Precision | Recall | F1 | IoU |
+|---|---|---|---|---|---|---|
+| XGBoost Tuned | 0.887 | 0.548 | 0.625 | 0.605 | 0.615 | 0.444 |
+
+### Zero-shot transferability (XGBoost Tuned, vs. GMW v3)
+
+| Site | Area (ha) | Kappa | Precision | Recall | F1 | IoU |
+|---|---|---|---|---|---|---|
+| Australia | 4,258.7 | 0.627 | 0.855 | 0.722 | 0.783 | 0.643 |
+| El Salvador | 5,411.2 | 0.579 | 0.943 | 0.734 | 0.826 | 0.703 |
+| Belize 1 | 1,512.9 | 0.505 | 0.421 | 0.807 | 0.553 | 0.382 |
+| Belize 2 | 1,617.8 | 0.236 | 0.178 | 0.732 | 0.287 | 0.167 |
+| Gujarat | 8.1 | −0.001 | — | — | — | — |
+
+**Notes:**
+- Australia and El Salvador transfer well (F1 > 0.78 and 0.83 respectively).
+- Belize 2 has low precision, likely due to adjacent scene overlap and cloud/shadow edge effects.
+- Gujarat fails completely: the scene contains negligible mangrove cover (8.1 ha) relative to scene extent, causing the adaptive threshold to produce near-zero detections. This is a known limitation of pseudo-label-based transfer to very sparse sites.
 
 ## Repository Structure
 
 ```
 tanager-mangrove-mapping/
 ├── notebooks/
-│   ├── 00_emit_data_inspector.ipynb  # Exploratory EMIT GeoTIFF inspection (spectral profiles, RGB composite)
 │   ├── 01_preprocessing.ipynb        # HDF5 inspection, band extraction, indices, adaptive threshold, REIP
-│   ├── 02_classification.ipynb       # Pseudo-labels, RF + XGBoost (class-balanced), extent map
-│   ├── 03_transferability.ipynb      # Zero-shot transfer to 4 sites, GMW v3 accuracy summary
-│   └── journal/                      # Scenario B ablation (journal publication only)
-│       ├── 01b_multispectral_equivalent.ipynb  # SRF convolution, S2-equivalent indices
-│       ├── 02b_classification.ipynb            # XGBoost on 4-feature stack (Sangatta)
-│       └── 03b_transferability.ipynb           # Scenario B transfer, Kappa A vs B comparison
+│   ├── 02_classification.ipynb       # Pseudo-labels, XGBoost training + tuning, GMW v3 evaluation
+│   ├── 03_transferability.ipynb      # Zero-shot transfer to 5 scenes, accuracy summary table
+│   └── journal/                      # Scenario B ablation (journal publication only, not competition)
+│       ├── 01b_multispectral_equivalent.ipynb
+│       ├── 02b_classification.ipynb
+│       └── 03b_transferability.ipynb
 ├── src/
 │   ├── preprocessing.py             # HDF5 I/O, GeoTIFF conversion, indices, adaptive threshold, REIP
-│   ├── classification.py            # Pseudo-labels, RF + XGBoost, evaluation, compare_models
-│   ├── evaluation.py                # Independent accuracy assessment vs GMW v3 (confusion, kappa, agreement maps)
+│   ├── classification.py            # Pseudo-labels, RF + XGBoost, evaluation
+│   ├── evaluation.py                # GMW v3 accuracy assessment (confusion, kappa, agreement maps)
 │   ├── transferability.py           # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
+│   ├── spatial_viz.py               # Shared map visualization helpers (used by all notebooks)
 │   ├── spectral_resampling.py       # S2A SRF convolution (journal/Scenario B only)
 │   └── gedi_utils.py                # GEDI helpers (unused — biomass out of scope)
+├── run_03.py                        # Standalone local script equivalent of NB03
 ├── data/
-│   ├── README_data.md               # Download instructions (no large files in repo)
 │   ├── raw/                         # HDF5 originals from Planet STAC (gitignored)
 │   ├── processed/                   # GeoTIFF band files + output rasters (gitignored)
 │   ├── aoi/                         # AOI polygons per site (.geojson)
 │   └── gmw_v3/                      # GMW v3 validation subsets (.geojson)
-├── outputs/
-│   ├── figures/                     # Maps + plots (150 dpi PNG)
-│   ├── models/                      # Trained RF + XGBoost (.joblib)
-│   └── results/                     # Accuracy tables (.csv), thresholds per scene (.json)
-├── docs/
-│   └── technical_memo.pdf           # Methods write-up
-└── mangrove_tanager_final.ipynb     # Competition submission notebook
+└── outputs/
+    ├── figures/                     # Maps and plots (150 dpi PNG)
+    ├── models/                      # Trained RF + XGBoost (.joblib, gitignored)
+    ├── vector/                      # Mangrove extent GeoPackages per site (.gpkg)
+    └── results/                     # Accuracy tables (.csv), thresholds per scene (.json)
 ```
 
 ## Setup
@@ -80,7 +102,7 @@ conda env create -f environment.yml
 conda activate tanager-mangrove
 ```
 
-Data download instructions: see `data/README_data.md`.
+Primary execution environment is **Google Colab**. For local runs, uncomment the local `ROOT` path in each notebook's setup cell and comment out the Colab path.
 
 ## Running the Pipeline
 
@@ -88,11 +110,23 @@ Run notebooks in order. Each notebook saves outputs consumed by the next.
 
 | Notebook | Key input | Key output |
 |---|---|---|
-| `01_preprocessing` | `data/raw/{site}_{scene_id}_ortho_sr_hdf5.h5` | `data/processed/*_bands.tif`, `candidate_*.tif`, `reip_*.tif`, `outputs/results/thresholds_*.json` |
-| `02_classification` | processed GeoTIFFs + REIP + thresholds JSON | `outputs/models/rf_*.joblib`, `xgb_tuned_*.joblib`, `data/processed/extent_mangrove_*.tif`, `outputs/results/gmw_eval_*.csv` |
-| `03_transferability` | XGBoost model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary_xgboost.csv` |
+| `01_preprocessing` | `data/raw/{site}_{scene_id}_ortho_sr_hdf5.h5` | `data/processed/*_bands.tif`, `reip_*.tif`, `outputs/results/thresholds_*.json` |
+| `02_classification` | processed GeoTIFFs + REIP + thresholds JSON | `outputs/models/xgb_tuned_*.joblib`, `outputs/results/gmw_eval_*.csv` |
+| `03_transferability` | XGBoost model + processed GeoTIFFs (transfer sites) | `outputs/results/thresholds_*.json` per site, `transferability_summary_xgboost.csv`, `outputs/vector/*.gpkg` |
 
-**Before running notebook 01:** call `inspect_hdf5()` on your Tanager `.h5` file and verify that `REFLECTANCE_PATH = 'HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance'` matches your file's internal structure (note the literal space in "Data Fields").
+Alternatively, run the transferability stage locally without Colab:
+
+```bash
+python run_03.py
+```
+
+**HDF5 internal path note:** the reflectance dataset is at `HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance` — note the literal space in "Data Fields". QGIS displays this as `Data_Fields` (an underscore), which is a display artifact only. h5py requires the space.
+
+## Known Limitations
+
+- **Gujarat transfer failure:** negligible mangrove presence relative to scene extent causes near-zero pseudo-label generation. The adaptive threshold framework assumes at least a bimodal MVI/NDMI distribution, which breaks for very sparse sites.
+- **Belize 2 low precision:** adjacent strip overlap and scene-edge artifacts inflate false positives.
+- **Map visualization in NB03:** basemap tiles may fail to load depending on the rendering environment (Colab network restrictions). This is a known issue and does not affect accuracy results.
 
 ## License
 
@@ -100,12 +134,12 @@ MIT License. See `LICENSE`.
 
 ## References
 
-- Bunting, P., Rosenqvist, A., Lucas, R. M., Rebelo, L., Hilarides, L., Thomas, N., Hardy, A., Itoh, T., Shimada, M., & Finlayson, C. M. (2018). The Global Mangrove Watch—A new 2010 Global Baseline of Mangrove Extent. Remote Sensing, 10(10), 1669. https://doi.org/10.3390/rs10101669
-- Hu, T., Zhang, Y., Su, Y., Zheng, Y., Lin, G., & Guo, Q. (2020). Mapping the global mangrove forest aboveground biomass using multisource remote sensing data. Remote Sensing, 12(10), 1690. https://doi.org/10.3390/rs12101690
+- Baloloy, A. B., Blanco, A. C., Sta. Ana, R. R. C., & Nadaoka, K. (2020). Development and application of a new mangrove vegetation index (MVI) for rapid and accurate mangrove mapping. ISPRS Journal of Photogrammetry and Remote Sensing, 166, 95–117. https://doi.org/10.1016/j.isprsjprs.2020.06.001
+- Belgiu, M., & Dragut, L. (2016). Random forest in remote sensing: A review of applications and future directions. ISPRS Journal of Photogrammetry and Remote Sensing, 114, 24–31. https://doi.org/10.1016/j.isprsjprs.2016.01.011
+- Bunting, P., Rosenqvist, A., Lucas, R. M., Rebelo, L., Hilarides, L., Thomas, N., Hardy, A., Itoh, T., Shimada, M., & Finlayson, C. M. (2018). The Global Mangrove Watch — A new 2010 global baseline of mangrove extent. Remote Sensing, 10(10), 1669. https://doi.org/10.3390/rs10101669
+- Gao, B.-C. (1996). NDWI — A normalized difference water index for remote sensing of vegetation liquid water from space. Remote Sensing of Environment, 58(3), 257–266. https://doi.org/10.1016/S0034-4257(96)00067-3
+- Huete, A. R. (1988). A soil-adjusted vegetation index (SAVI). Remote Sensing of Environment, 25(3), 295–309. https://doi.org/10.1016/0034-4257(88)90106-X
 - Lassalle, G., Ferreira, M. P., La Rosa, L. E. C., Scafutto, R. D. M., & De Souza Filho, C. R. (2022). Advances in multi- and hyperspectral remote sensing of mangrove species: A synthesis and study case on airborne and multisource spaceborne imagery. ISPRS Journal of Photogrammetry and Remote Sensing, 195, 298–312. https://doi.org/10.1016/j.isprsjprs.2022.12.003
-- Munawaroh, M., Wijaya, M. S., Winarso, G., Rudiastuti, A., Rahmila, Y. I., Suardana, A. a. P., Anggraini, N., & Rahmadi. (2025). Assessment of spatial misclassification in mangrove vs. Non-Mangrove Remote sensing classifications. ICARES, 1–7. https://doi.org/10.1109/icares67579.2025.11371528
 - Nie, X., Xue, Z., & Li, X. (2026). Label-free mangrove mapping from temporally consistent PlanetScope imagery with interpretable deep unfolding network. ISPRS Journal of Photogrammetry and Remote Sensing, 235, 19–37. https://doi.org/10.1016/j.isprsjprs.2026.02.035
 - Rahmila, Y. I., Prasetyo, L. B., Kusmana, C., Suyadi, Basyuni, M., Slamet, B., Pranoto, B., Yulianti, M., Yeny, I., Halwany, W., Rahmania, R., Januar, H. I., Adji, A. S., & Munawaroh. (2026). Mangrove Ecosystem Health Index (MEHI): a new method to evaluate mangrove ecosystem health at landscape scale using spatial metrics, canopy density, and potential disturbance based on hexagonal grid. Forest Science and Technology, 1–20. https://doi.org/10.1080/21580103.2026.2616443
-- Shendryk, Y. (2022). Fusing GEDI with earth observation data for large area aboveground biomass mapping. International Journal of Applied Earth Observation and Geoinformation, 115, 103108. https://doi.org/10.1016/j.jag.2022.103108
-- Zhang, R., & Fan, J. (2025). Classification and Carbon-Stock estimation of mangroves in Dongzhaigang based on Multi-Source remote sensing data using Google Earth Engine. Remote Sensing, 17(6), 964. https://doi.org/10.3390/rs17060964
-```
+- Xu, H. (2006). Modification of normalised difference water index (NDWI) to enhance open water features in remotely sensed imagery. International Journal of Remote Sensing, 27(14), 3025–3033. https://doi.org/10.1080/01431160600589179
