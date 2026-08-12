@@ -385,7 +385,9 @@ def compute_cmri(data: dict) -> np.ndarray:
     Derived entirely from NDVI and MNDWI; no additional band is needed.
     Note: CMRI is used as a classifier feature only and is NOT exported
     to the multiband GeoTIFF (RELEVANT_WAVELENGTHS) to avoid redundancy.
-    Reference: Rijal & Saintilan (2026)
+    Reference: Gupta et al. (2018) doi:10.1080/01431161.2018.1506951
+    Note: original CMRI uses NDWI (Gao 1996); here MNDWI (Xu 2006,
+    Green-SWIR1) is substituted for improved water/mangrove separation.
     """
     return compute_ndvi(data) - compute_mndwi(data)
 
