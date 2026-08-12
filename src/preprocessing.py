@@ -45,7 +45,7 @@ from skimage.filters import threshold_otsu
 # References (band positions in nm):
 #   Green    560  : Xu (2006) MNDWI               doi:10.1080/01431160600589179
 #   Red      660  : Huete (1988) SAVI, NDVI        doi:10.1016/0034-4257(88)90106-X
-#   RedEdge  720  : Rouse et al. (1974) NDRE       doi:10.1080/01431160600589179
+#   RedEdge  720  : Gitelson & Merzlyak (1994) NDRE [no DOI]
 #   NIR      860  : Gao (1996) NDMI                doi:10.1016/S0034-4257(96)00067-3
 #                   Huete (1988) NDVI, SAVI         doi:10.1016/0034-4257(88)90106-X
 #   SWIR1   1640  : Xu (2006) MNDWI                doi:10.1080/01431160600589179
@@ -397,7 +397,7 @@ def compute_ndre(data: dict) -> np.ndarray:
     NDRE = (NIR - RedEdge) / (NIR + RedEdge)
     Normalized Difference Red-Edge index.
     Requires the 720 nm red-edge band exported in RELEVANT_WAVELENGTHS.
-    Reference: Rouse et al. (1974)
+    Reference: Gitelson & Merzlyak (1994) [no DOI]
     """
     nir      = _get_band(data, 'nir')
     rededge  = _get_band(data, 'rededge')
@@ -419,7 +419,7 @@ def compute_mvi(data: dict) -> np.ndarray:
     """
     MVI = (NIR - Green) / (SWIR1 - Green)
     Mangrove Vegetation Index.
-    Reference: Baloloy et al. (2020)
+    Reference: Baloloy et al. (2020) https://doi.org/10.1016/j.isprsjprs.2020.06.001
     """
     nir   = _get_band(data, 'nir')
     green = _get_band(data, 'green')
