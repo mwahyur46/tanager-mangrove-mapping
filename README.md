@@ -63,12 +63,12 @@ candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k
 
 ![Pseudo-label map — Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
 
-### NB02 — Spatial agreement vs GMW v3 (Sangatta, XGBoost Tuned)
+### NB02 — Commission-omission error map (Sangatta, XGBoost Tuned)
 
-Green = true positive, red = commission error (false positive), orange = omission error
-(false negative). Evaluated within the candidate zone only (57,014 pixels).
+Green = true positive (correct mangrove), red = commission error (false positive),
+orange = omission error (false negative). Evaluated within the candidate zone only (57,014 pixels).
 
-![Spatial agreement — Sangatta XGBoost Tuned](outputs/figures/agreement_xgb_tuned_sangatta_20250302_030003_92_4001.png)
+![Commission-omission error map — Sangatta XGBoost Tuned](outputs/figures/commission_omission_xgb_tuned_sangatta_20250302_030003_92_4001.png)
 
 ### NB03 — Predicted mangrove extent — all sites
 
