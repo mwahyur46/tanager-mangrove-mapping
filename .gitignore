@@ -28,7 +28,6 @@ data/**/*.nc
 
 # Outputs (regenerable)
 outputs/models/*.joblib
-outputs/figures/*.png
 outputs/figures/*.tif
 outputs/results/*.csv
 

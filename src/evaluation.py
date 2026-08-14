@@ -216,44 +216,64 @@ def plot_confusion_matrix(cm: np.ndarray,
 # 4. Spatial agreement map (TP / FP / FN visualization)
 # =============================================================================
 
+def build_agree_array(extent_map: np.ndarray,
+                      gmw_raster: np.ndarray,
+                      eval_mask: np.ndarray = None) -> np.ndarray:
+    """
+    Build the commission-omission array from extent and GMW rasters.
+
+    Returns
+    -------
+    2D np.ndarray uint8:
+      0 = background (outside eval domain)
+      1 = TP  (correct mangrove)
+      2 = FP  (commission error -- predicted mangrove, GMW says no)
+      3 = FN  (omission error  -- GMW says mangrove, model missed)
+    """
+    pred = (extent_map == 1)
+    true = (gmw_raster == 1)
+    if eval_mask is not None:
+        pred = pred & eval_mask
+        true = true & eval_mask
+    agree = np.zeros(extent_map.shape, dtype=np.uint8)
+    agree[true & pred]   = 1
+    agree[~true & pred]  = 2
+    agree[true & ~pred]  = 3
+    return agree
+
+
 def plot_agreement_map(extent_map: np.ndarray,
                        gmw_raster: np.ndarray,
                        eval_mask: np.ndarray = None,
                        site: str = "",
                        save_path: str = None):
     """
-    Visualize spatial agreement: TP (correct), FP (commission), FN (omission).
+    Commission-omission error map: TP (correct), FP (commission), FN (omission).
+
+    Plots in native pixel space. For a geographically projected version with
+    lat/lon axes, use build_agree_array() then reproject_array_to_4326() from
+    src.spatial_viz and render inline in the notebook.
 
     Color scheme:
       green  = TP  (both predict mangrove)
-      red    = FP  (model says mangrove, GMW says no -- commission error)
-      orange = FN  (GMW says mangrove, model misses -- omission error)
+      red    = FP  (commission error -- model predicts mangrove, GMW says no)
+      orange = FN  (omission error  -- GMW says mangrove, model misses)
     """
-    pred = (extent_map == 1)
-    true = (gmw_raster == 1)
-
-    if eval_mask is not None:
-        pred = pred & eval_mask
-        true = true & eval_mask
-
-    agree = np.zeros(extent_map.shape, dtype=np.uint8)
-    agree[true & pred]   = 1   # TP
-    agree[~true & pred]  = 2   # FP
-    agree[true & ~pred]  = 3   # FN
+    agree = build_agree_array(extent_map, gmw_raster, eval_mask)
 
     from matplotlib.colors import ListedColormap
+    from matplotlib.patches import Patch
     cmap = ListedColormap(['#f0f0f0', '#2ca02c', '#d62728', '#ff7f0e'])
 
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.imshow(agree, cmap=cmap, vmin=0, vmax=3)
-    ax.set_title(f'Spatial Agreement vs GMW v3 -- {site}')
+    ax.set_title(f'Commission-Omission Error Map -- {site}')
     ax.axis('off')
 
-    from matplotlib.patches import Patch
     legend = [
         Patch(color='#2ca02c', label='TP (correct mangrove)'),
-        Patch(color='#d62728', label='FP (commission / over-predict)'),
-        Patch(color='#ff7f0e', label='FN (omission / missed)'),
+        Patch(color='#d62728', label='FP (commission error)'),
+        Patch(color='#ff7f0e', label='FN (omission error)'),
     ]
     ax.legend(handles=legend, loc='lower right', fontsize=9)
 

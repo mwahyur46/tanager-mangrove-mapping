@@ -39,6 +39,53 @@ Tanager-1 HDF5 (data/raw/)
 | Belize (strip 2) | `20250824_171857_84_4001` | Transfer site 3b |
 | Australia | `20250608_014315_58_4001` | Transfer site 4 |
 
+## Figures
+
+### NB01 — Spectral indices (Sangatta)
+
+Eight spectral indices computed from the 6-band GeoTIFF. MVI and NDMI provide the
+bimodal signal used by the adaptive threshold stage.
+
+![Spectral indices — Sangatta](outputs/figures/indices_sangatta.png)
+
+### NB01 — Adaptive threshold calibration (Sangatta)
+
+Per-scene histogram analysis within the coastal candidate zone. MVI uses forced Otsu;
+NDMI uses bimodal valley detection. Thresholds are saved to JSON and replayed at transfer
+time — no retraining required.
+
+![Adaptive thresholds — Sangatta](outputs/figures/thresholds_sangatta.png)
+
+### NB02 — Pseudo-label map and train/test split (Sangatta)
+
+Left: pseudo-labels generated from MVI > 4.04 AND NDMI > 0.25, constrained to the
+candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k / 99 k samples).
+
+![Pseudo-label map — Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
+
+### NB02 — Spatial agreement vs GMW v3 (Sangatta, XGBoost Tuned)
+
+Green = true positive, red = commission error (false positive), orange = omission error
+(false negative). Evaluated within the candidate zone only (57,014 pixels).
+
+![Spatial agreement — Sangatta XGBoost Tuned](outputs/figures/agreement_xgb_tuned_sangatta_20250302_030003_92_4001.png)
+
+### NB03 — Predicted mangrove extent — all sites
+
+XGBoost trained on Sangatta applied zero-shot to all six scenes (8 indices + REIP, no retraining).
+Gujarat near-blank panel reflects negligible mangrove cover at that scene.
+
+![Mangrove extent — all sites](outputs/figures/transferability_extent_maps.png)
+
+### NB03 — Extent maps overlaid on Tanager true-colour imagery
+
+Predicted mangrove (green overlay) on Tanager true-colour composite
+(R:660 nm, G:560 nm, B:480 nm) for all six scenes.
+
+![Extent maps on basemap — all sites](outputs/figures/transferability_basemap_panel.png)
+
+---
+
 ## Results
 
 ### Training site — Sangatta (vs. GMW v3)
@@ -82,12 +129,23 @@ tanager-mangrove-mapping/
 │   ├── spatial_viz.py               # Shared map visualization helpers (used by all notebooks)
 │   ├── spectral_resampling.py       # S2A SRF convolution (journal/Scenario B only)
 │   └── gedi_utils.py                # GEDI helpers (unused — biomass out of scope)
+├── references/                      # Planet's reference implementation (not part of this submission)
+│   ├── 00_download_data.py
+│   ├── 01_feature_extraction.py
+│   ├── 02a_model_training.py
+│   ├── 02b_model_analysis.py
+│   ├── 02c_best_model_chart.py
+│   ├── 03_model_inference.py
+│   ├── 04a_visualizations_inference.py
+│   ├── 04b_visualizations_aoi.py
+│   └── src/                         # Reference helper modules (config, gee_utils, raster, etc.)
 ├── run_03.py                        # Standalone local script equivalent of NB03
 ├── data/
 │   ├── raw/                         # HDF5 originals from Planet STAC (gitignored)
 │   ├── processed/                   # GeoTIFF band files + output rasters (gitignored)
-│   ├── aoi/                         # AOI polygons per site (.geojson)
-│   └── gmw_v3/                      # GMW v3 validation subsets (.geojson)
+│   ├── aoi/                         # AOI polygons per site (.geojson + shp/)
+│   ├── gmw_v3/                      # GMW v3 validation subsets (.geojson + shp/)
+│   └── sentinel2_srf/               # ESA S2A SRF files (journal/Scenario B only)
 └── outputs/
     ├── figures/                     # Maps and plots (150 dpi PNG)
     ├── models/                      # Trained RF + XGBoost (.joblib, gitignored)
