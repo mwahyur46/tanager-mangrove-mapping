@@ -331,7 +331,7 @@ def predict_extent(model, indices: dict,
 
 # Gold-standard search spaces (classification variant)
 # Adapted from model_utils.py (regression project reference).
-# Scoring: F1 mangrove class (pos_label=1) — preferred over accuracy
+# Scoring: F1 mangrove class (pos_label=1) - preferred over accuracy
 # for minority-class remote sensing problems.
 
 from scipy.stats import randint as _randint, uniform as _uniform
@@ -441,7 +441,7 @@ def tune_xgboost(X_train: np.ndarray, y_train: np.ndarray,
     scipy.stats.uniform for dense coverage.
 
     scale_pos_weight is set automatically from class ratio to handle
-    mangrove minority class — not included in search space to avoid
+    mangrove minority class - not included in search space to avoid
     interaction with other imbalance-handling params.
 
     Scoring: F1 for the mangrove class (pos_label=1).

@@ -1,4 +1,4 @@
-# Scenario B — Multispectral-Equivalent Comparison
+# Scenario B - Multispectral-Equivalent Comparison
 
 ## Positioning
 

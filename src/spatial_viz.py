@@ -3,7 +3,7 @@ Spatial Visualization Helpers
 
 On-the-fly raster reprojection to EPSG:4326, RGB composite generation
 with percentile contrast stretching, and standardized geographic map-axes
-formatting — shared across all visualization cells in the competition and
+formatting - shared across all visualization cells in the competition and
 journal notebooks to ensure a consistent look across all map panels.
 """
 
@@ -151,7 +151,7 @@ def reproject_rgb_composite_to_4326(src, bands):
     Parameters
     ----------
     src   : open rasterio dataset
-    bands : list of 3 band identifiers — integers (1-based) or strings
+    bands : list of 3 band identifiers - integers (1-based) or strings
         such as 'B8', 'B11', 'B4'.
 
     Returns

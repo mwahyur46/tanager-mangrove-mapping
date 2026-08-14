@@ -39,7 +39,7 @@ from skimage.filters import threshold_otsu
 # =============================================================================
 
 # =============================================================================
-# Target wavelengths (nm) — selected from Tanager 426-band VSWIR spectrum
+# Target wavelengths (nm) - selected from Tanager 426-band VSWIR spectrum
 # based on the original definitions of each spectral index.
 #
 # References (band positions in nm):
@@ -118,15 +118,15 @@ def load_hdf5(filepath: str) -> dict:
     -------
     dict with keys:
         'reflectance' : np.ndarray, shape (bands, rows, cols), float32, scaled [0, 1]
-        'wavelengths' : np.ndarray, shape (bands,), float32 — reconstructed from sensor spec
-        'crs'         : rasterio.crs.CRS — read from epsg_code attribute
-        'transform'   : rasterio.Affine — derived from StructMetadata UL corner + pixel size
+        'wavelengths' : np.ndarray, shape (bands,), float32 - reconstructed from sensor spec
+        'crs'         : rasterio.crs.CRS - read from epsg_code attribute
+        'transform'   : rasterio.Affine - derived from StructMetadata UL corner + pixel size
 
     Notes
     -----
     Tanager HDF5 structure confirmed via inspect_hdf5():
         Reflectance : HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance  (426, 850, 810)
-        Wavelengths : not stored in file — reconstructed as np.linspace(380, 2500, 426)
+        Wavelengths : not stored in file - reconstructed as np.linspace(380, 2500, 426)
         CRS         : HDFEOS/GRIDS/HYP attrs['epsg_code']  (e.g. 32650 for Sangatta)
         Geotransform: parsed from HDFEOS INFORMATION/StructMetadata.0 (UTM, metres)
     """
@@ -135,10 +135,10 @@ def load_hdf5(filepath: str) -> dict:
     with h5py.File(filepath, 'r') as f:
         reflectance = f[REFLECTANCE_PATH][:]                        # (426, rows, cols)
 
-        # Wavelength not stored in file — reconstruct from Tanager sensor spec
+        # Wavelength not stored in file - reconstruct from Tanager sensor spec
         wavelengths = np.linspace(380, 2500, reflectance.shape[0]).astype(np.float32)
 
-        # CRS — read epsg_code dynamically (varies per scene/UTM zone)
+        # CRS - read epsg_code dynamically (varies per scene/UTM zone)
         # Use pyproj.CRS → WKT → rasterio.CRS to bypass the GDAL/rasterio
         # PROJ database version conflict that arises when another PROJ
         # installation (e.g. a user-level pip rasterio) is on sys.path.
@@ -148,16 +148,16 @@ def load_hdf5(filepath: str) -> dict:
         _pyproj_crs = pyproj.CRS.from_epsg(epsg)
         crs = CRS.from_wkt(_pyproj_crs.to_wkt())
 
-        # Geotransform — parse UL corner + pixel size from StructMetadata
+        # Geotransform - parse UL corner + pixel size from StructMetadata
         meta      = f['HDFEOS INFORMATION/StructMetadata.0'][()].decode()
         ul        = _parse_ul(meta)
         pixel     = _parse_pixel(meta)
         transform = Affine(pixel, 0, ul[0], 0, -pixel, ul[1])
 
     reflectance = reflectance.astype(np.float32)
-    # Mask nodata pixels — Tanager uses -9999 as nodata sentinel
+    # Mask nodata pixels - Tanager uses -9999 as nodata sentinel
     reflectance[reflectance <= -9999] = np.nan
-    # No scaling needed — Tanager SR already in [0, 1] range
+    # No scaling needed - Tanager SR already in [0, 1] range
 
     print(f"  HDF5 loaded     : {Path(filepath).name}")
     print(f"  Shape (B,H,W)   : {reflectance.shape}")
@@ -203,7 +203,7 @@ def hdf5_to_geotiff(hdf5_path: str, output_dir: str,
                     wavelengths_nm: dict = None) -> str:
     """
     Convert relevant bands from Tanager HDF5 to a single multiband GeoTIFF.
-    All bands stacked into one file — 1 file per scene instead of 1 per band.
+    All bands stacked into one file - 1 file per scene instead of 1 per band.
 
     Parameters
     ----------
@@ -568,7 +568,7 @@ def compute_water_mask(data: dict, mndwi_threshold: float = 0.0) -> np.ndarray:
 
     Returns
     -------
-    2D bool np.ndarray — True = water pixel (exclude from thresholding)
+    2D bool np.ndarray - True = water pixel (exclude from thresholding)
     """
     mndwi = compute_mndwi(data)
     return mndwi > mndwi_threshold
@@ -751,7 +751,7 @@ def compute_coastal_candidate_mask(data: dict,
     # 4. Adaptive buffer (Otsu on distance within vegetated pixels)
     dist_veg = dist_px[veg_mask & np.isfinite(dist_px)]
     if len(dist_veg) == 0:
-        raise ValueError("No vegetated pixels — check SAVI threshold or data")
+        raise ValueError("No vegetated pixels - check SAVI threshold or data")
     buffer_otsu_px = float(threshold_otsu(dist_veg))
 
     # Convert buffer to meters (approx, assumes square pixels)

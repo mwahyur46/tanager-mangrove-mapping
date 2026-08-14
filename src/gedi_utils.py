@@ -66,7 +66,7 @@ def spatial_join_gedi_tanager(gedi_gdf: gpd.GeoDataFrame,
                                tif_path: str) -> pd.DataFrame:
     """
     Extract Tanager spectral index values at each GEDI footprint location.
-    Joins by pixel coordinate lookup — no resampling needed (point-in-pixel).
+    Joins by pixel coordinate lookup - no resampling needed (point-in-pixel).
 
     Parameters
     ----------
@@ -224,7 +224,7 @@ def agb_to_carbon(agb_map: np.ndarray,
     """
     Convert AGB (Mg/ha) to carbon stock (MgC/ha).
 
-    Default factor: 0.451 (IPCC 2006 — tropical forest).
+    Default factor: 0.451 (IPCC 2006 - tropical forest).
     NaN pixels preserved.
 
     Parameters

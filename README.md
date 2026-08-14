@@ -25,7 +25,7 @@ Tanager-1 HDF5 (data/raw/)
     └── Step 5: Per-scene adaptive threshold  ← core innovation
                 bimodal valley detection; Otsu fallback if unimodal (MVI forced Otsu)
     └── Step 6: Pseudo-labels (MVI ∧ NDMI) → XGBoost (9 features: 8 indices + REIP)
-    └── Step 7: Zero-shot transfer to 5 scenes — no retraining
+    └── Step 7: Zero-shot transfer to 5 scenes - no retraining
 ```
 
 ## Study Sites
@@ -41,54 +41,54 @@ Tanager-1 HDF5 (data/raw/)
 
 ## Figures
 
-### NB01 — Spectral indices (Sangatta)
+### NB01 - Spectral indices (Sangatta)
 
 Eight spectral indices computed from the 6-band GeoTIFF. MVI and NDMI provide the
 bimodal signal used by the adaptive threshold stage.
 
-![Spectral indices — Sangatta](outputs/figures/indices_sangatta.png)
+![Spectral indices - Sangatta](outputs/figures/indices_sangatta.png)
 
-### NB01 — Adaptive threshold calibration (Sangatta)
+### NB01 - Adaptive threshold calibration (Sangatta)
 
 Per-scene histogram analysis within the coastal candidate zone. MVI uses forced Otsu;
 NDMI uses bimodal valley detection. Thresholds are saved to JSON and replayed at transfer
-time — no retraining required.
+time - no retraining required.
 
-![Adaptive thresholds — Sangatta](outputs/figures/thresholds_sangatta.png)
+![Adaptive thresholds - Sangatta](outputs/figures/thresholds_sangatta.png)
 
-### NB02 — Pseudo-label map and train/test split (Sangatta)
+### NB02 - Pseudo-label map and train/test split (Sangatta)
 
 Left: pseudo-labels generated from MVI > 4.04 AND NDMI > 0.25, constrained to the
 candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k / 99 k samples).
 
-![Pseudo-label map — Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
+![Pseudo-label map - Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
 
-### NB02 — Commission-omission error map (Sangatta, XGBoost Tuned)
+### NB02 - Commission-omission error map (Sangatta, XGBoost Tuned)
 
 Green = true positive (correct mangrove), red = commission error (false positive),
 orange = omission error (false negative). Evaluated within the candidate zone only (57,014 pixels).
 
-![Commission-omission error map — Sangatta XGBoost Tuned](outputs/figures/commission_omission_xgb_tuned_sangatta_20250302_030003_92_4001.png)
+![Commission-omission error map - Sangatta XGBoost Tuned](outputs/figures/commission_omission_xgb_tuned_sangatta_20250302_030003_92_4001.png)
 
-### NB03 — Predicted mangrove extent — all sites
+### NB03 - Predicted mangrove extent - all sites
 
 XGBoost trained on Sangatta applied zero-shot to all six scenes (8 indices + REIP, no retraining).
 Gujarat near-blank panel reflects negligible mangrove cover at that scene.
 
-![Mangrove extent — all sites](outputs/figures/transferability_extent_maps.png)
+![Mangrove extent - all sites](outputs/figures/transferability_extent_maps.png)
 
-### NB03 — Extent maps overlaid on Tanager true-colour imagery
+### NB03 - Extent maps overlaid on Tanager true-colour imagery
 
 Predicted mangrove (green overlay) on Tanager true-colour composite
 (R:660 nm, G:560 nm, B:480 nm) for all six scenes.
 
-![Extent maps on basemap — all sites](outputs/figures/transferability_basemap_panel.png)
+![Extent maps on basemap - all sites](outputs/figures/transferability_basemap_panel.png)
 
 ---
 
 ## Results
 
-### Training site — Sangatta (vs. GMW v3)
+### Training site - Sangatta (vs. GMW v3)
 
 | Model | OA | Kappa | Precision | Recall | F1 | IoU |
 |---|---|---|---|---|---|---|
@@ -102,7 +102,7 @@ Predicted mangrove (green overlay) on Tanager true-colour composite
 | El Salvador | 5,411.2 | 0.579 | 0.943 | 0.734 | 0.826 | 0.703 |
 | Belize 1 | 1,512.9 | 0.505 | 0.421 | 0.807 | 0.553 | 0.382 |
 | Belize 2 | 1,617.8 | 0.236 | 0.178 | 0.732 | 0.287 | 0.167 |
-| Gujarat | 8.1 | −0.001 | — | — | — | — |
+| Gujarat | 8.1 | −0.001 | - | - | - | - |
 
 **Notes:**
 - Australia and El Salvador transfer well (F1 > 0.78 and 0.83 respectively).
@@ -128,7 +128,7 @@ tanager-mangrove-mapping/
 │   ├── transferability.py           # run_transfer_scene(), run_all_transfer_sites(), TRANSFER_SITES registry
 │   ├── spatial_viz.py               # Shared map visualization helpers (used by all notebooks)
 │   ├── spectral_resampling.py       # S2A SRF convolution (journal/Scenario B only)
-│   └── gedi_utils.py                # GEDI helpers (unused — biomass out of scope)
+│   └── gedi_utils.py                # GEDI helpers (unused - biomass out of scope)
 ├── references/                      # Planet's reference implementation (not part of this submission)
 │   ├── 00_download_data.py
 │   ├── 01_feature_extraction.py
@@ -178,7 +178,7 @@ Alternatively, run the transferability stage locally without Colab:
 python run_03.py
 ```
 
-**HDF5 internal path note:** the reflectance dataset is at `HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance` — note the literal space in "Data Fields". QGIS displays this as `Data_Fields` (an underscore), which is a display artifact only. h5py requires the space.
+**HDF5 internal path note:** the reflectance dataset is at `HDFEOS/GRIDS/HYP/Data Fields/surface_reflectance` - note the literal space in "Data Fields". QGIS displays this as `Data_Fields` (an underscore), which is a display artifact only. h5py requires the space.
 
 ## Known Limitations
 
@@ -194,8 +194,8 @@ MIT License. See `LICENSE`.
 
 - Baloloy, A. B., Blanco, A. C., Sta. Ana, R. R. C., & Nadaoka, K. (2020). Development and application of a new mangrove vegetation index (MVI) for rapid and accurate mangrove mapping. ISPRS Journal of Photogrammetry and Remote Sensing, 166, 95–117. https://doi.org/10.1016/j.isprsjprs.2020.06.001
 - Belgiu, M., & Dragut, L. (2016). Random forest in remote sensing: A review of applications and future directions. ISPRS Journal of Photogrammetry and Remote Sensing, 114, 24–31. https://doi.org/10.1016/j.isprsjprs.2016.01.011
-- Bunting, P., Rosenqvist, A., Lucas, R. M., Rebelo, L., Hilarides, L., Thomas, N., Hardy, A., Itoh, T., Shimada, M., & Finlayson, C. M. (2018). The Global Mangrove Watch — A new 2010 global baseline of mangrove extent. Remote Sensing, 10(10), 1669. https://doi.org/10.3390/rs10101669
-- Gao, B.-C. (1996). NDWI — A normalized difference water index for remote sensing of vegetation liquid water from space. Remote Sensing of Environment, 58(3), 257–266. https://doi.org/10.1016/S0034-4257(96)00067-3
+- Bunting, P., Rosenqvist, A., Lucas, R. M., Rebelo, L., Hilarides, L., Thomas, N., Hardy, A., Itoh, T., Shimada, M., & Finlayson, C. M. (2018). The Global Mangrove Watch - A new 2010 global baseline of mangrove extent. Remote Sensing, 10(10), 1669. https://doi.org/10.3390/rs10101669
+- Gao, B.-C. (1996). NDWI - A normalized difference water index for remote sensing of vegetation liquid water from space. Remote Sensing of Environment, 58(3), 257–266. https://doi.org/10.1016/S0034-4257(96)00067-3
 - Huete, A. R. (1988). A soil-adjusted vegetation index (SAVI). Remote Sensing of Environment, 25(3), 295–309. https://doi.org/10.1016/0034-4257(88)90106-X
 - Lassalle, G., Ferreira, M. P., La Rosa, L. E. C., Scafutto, R. D. M., & De Souza Filho, C. R. (2022). Advances in multi- and hyperspectral remote sensing of mangrove species: A synthesis and study case on airborne and multisource spaceborne imagery. ISPRS Journal of Photogrammetry and Remote Sensing, 195, 298–312. https://doi.org/10.1016/j.isprsjprs.2022.12.003
 - Nie, X., Xue, Z., & Li, X. (2026). Label-free mangrove mapping from temporally consistent PlanetScope imagery with interpretable deep unfolding network. ISPRS Journal of Photogrammetry and Remote Sensing, 235, 19–37. https://doi.org/10.1016/j.isprsjprs.2026.02.035
