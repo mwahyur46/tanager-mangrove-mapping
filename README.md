@@ -160,6 +160,12 @@ conda env create -f environment.yml
 conda activate tanager-mangrove
 ```
 
+A `requirements.txt` is provided for pip-only environments (e.g. Google Colab):
+
+```bash
+pip install -r requirements.txt
+```
+
 Primary execution environment is **Google Colab**. For local runs, uncomment the local `ROOT` path in each notebook's setup cell and comment out the Colab path.
 
 ## Running the Pipeline

@@ -40,6 +40,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Journal (in-development, not part of competition submission)
+notebooks/journal/*.ipynb
+
 # Claude Code
 CLAUDE.md
 CLAUDE_v0.md
