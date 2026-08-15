@@ -50,6 +50,7 @@ from skimage.filters import threshold_otsu
 #                   Huete (1988) NDVI, SAVI         doi:10.1016/0034-4257(88)90106-X
 #   SWIR1   1640  : Xu (2006) MNDWI                doi:10.1080/01431160600589179
 #                   Gao (1996) NDMI                 doi:10.1016/S0034-4257(96)00067-3
+#   SWIR2   2200  : Rahmila et al. (2026) EMI         doi:10.1080/21580103.2026.2616443
 # =============================================================================
 RELEVANT_WAVELENGTHS = {
     'green'    : 560,    # MNDWI, MVI
