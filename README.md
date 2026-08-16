@@ -65,8 +65,13 @@ candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k
 
 ### NB02 - Commission-omission error map (Sangatta, XGBoost Tuned)
 
-Green = true positive (correct mangrove), red = commission error (false positive),
-orange = omission error (false negative). Evaluated within the candidate zone only (57,014 pixels).
+Accuracy is assessed against GMW v3 (Global Mangrove Watch v3, an independent reference dataset - never used in training).
+
+- Green: true positive - mangrove correctly detected
+- Red: false positive - land incorrectly classified as mangrove (over-prediction)
+- Orange: false negative - mangrove pixels missed by the model (under-prediction)
+
+Evaluation is restricted to the coastal candidate zone (57,014 pixels) to avoid penalising the model for areas outside its operational scope.
 
 ![Commission-omission error map - Sangatta XGBoost Tuned](outputs/figures/commission_omission_xgb_tuned_sangatta_20250302_030003_92_4001.png)
 
