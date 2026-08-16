@@ -63,6 +63,19 @@ candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k
 
 ![Pseudo-label map - Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
 
+### NB02 - Pseudo-label coastal zoom panel (Sangatta)
+
+2x2 panel showing three coastal zoom windows from the pseudo-label map. Top-left: full scene
+with colored bounding boxes marking zoom locations. The remaining three panels show the spatial
+distribution of train (blue) and test (orange) samples within each window, overlaid on an MVI
+background with a CartoDB Positron basemap.
+
+- Zoom 1 (red frame): northern coastal strip
+- Zoom 2 (purple frame): central/southern coastal area
+- Zoom 3 (gold frame): southern area
+
+![Pseudo-label coastal zoom - Sangatta](outputs/figures/pseudo_label_zoom_sangatta_20250302_030003_92_4001.png)
+
 ### NB02 - Commission-omission error map (Sangatta, XGBoost Tuned)
 
 Accuracy is assessed against GMW v3 (Global Mangrove Watch v3, an independent reference dataset - never used in training).
