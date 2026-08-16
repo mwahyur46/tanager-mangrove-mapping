@@ -73,14 +73,16 @@ orange = omission error (false negative). Evaluated within the candidate zone on
 ### NB03 - Predicted mangrove extent - all sites
 
 XGBoost trained on Sangatta applied zero-shot to all six scenes (8 indices + REIP, no retraining).
+Each panel is padded to a square extent for consistent framing across scenes.
 Gujarat near-blank panel reflects negligible mangrove cover at that scene.
 
 ![Mangrove extent - all sites](outputs/figures/transferability_extent_maps.png)
 
 ### NB03 - Extent maps overlaid on Tanager true-colour imagery
 
-Predicted mangrove (green overlay) on Tanager true-colour composite
-(R:660 nm, G:560 nm, B:480 nm) for all six scenes.
+CartoDB Positron basemap with Tanager true-colour composite (R:660 nm, G:560 nm, B:480 nm,
+2-98% contrast stretch) for all six scenes. Mangrove extent shown as yellow-green fill
+(#d7f702, 80% opacity). Includes scale bar, north arrow, and legend per panel.
 
 ![Extent maps on basemap - all sites](outputs/figures/transferability_basemap_panel.png)
 
