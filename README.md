@@ -28,6 +28,10 @@ Tanager-1 HDF5 (data/raw/)
     └── Step 7: Zero-shot transfer to 5 scenes - no retraining
 ```
 
+![Pipeline Flowchart](docs/flowchart.jpg)
+
+The pipeline operates in three stages. In **pre-processing**, each Tanager-1 scene is converted from HDF5 to a 6-band GeoTIFF, eight spectral indices and REIP are extracted, and a coastal candidate mask (MNDWI + SAVI Otsu, capped at 500 m from water) restricts analysis to plausible mangrove pixels. In **classification and model development**, the Sangatta training anchor undergoes per-scene adaptive threshold calibration (bimodal valley detection for NDMI; forced Otsu for MVI) to generate pseudo-labels, which drive XGBoost training with 5-fold cross-validation hyperparameter tuning -- no manual labelling is required. In **transfer and validation**, the trained model is applied zero-shot to all six scenes after per-scene threshold recalibration; predictions are assessed against GMW v3 (an independent reference never used in training) using Kappa, F1, and IoU, and the final outputs are per-scene mangrove extent maps together with commission-omission error maps and a transferability summary table.
+
 ## Study Sites
 
 | Site | Scene ID | Role |
@@ -211,6 +215,17 @@ python run_03.py
 - **Gujarat transfer failure:** negligible mangrove presence relative to scene extent causes near-zero pseudo-label generation. The adaptive threshold framework assumes at least a bimodal MVI/NDMI distribution, which breaks for very sparse sites.
 - **Belize 2 low precision:** adjacent strip overlap and scene-edge artifacts inflate false positives.
 - **Map visualization in NB03:** basemap tiles may fail to load depending on the rendering environment (Colab network restrictions). This is a known issue and does not affect accuracy results.
+
+## Data Availability
+
+Processed outputs (extent maps, trained model, thresholds, evaluation results, AOI and GMW v3 subsets)
+are archived on Zenodo:
+
+> **DOI: https://doi.org/10.5281/zenodo.21971757**
+
+Raw Tanager-1 HDF5 scenes are distributed by Planet through the Tanager Open Data Competition STAC
+catalog (`ortho_sr_hdf5` surface reflectance products). Download using the scene IDs in
+`data/README_data.md` and place them in `data/raw/` before running the notebooks.
 
 ## License
 

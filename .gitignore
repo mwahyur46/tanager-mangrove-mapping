@@ -43,6 +43,14 @@ Thumbs.db
 # Journal (in-development, not part of competition submission)
 notebooks/journal/*.ipynb
 
+# Competition submission and archive (not part of repo structure)
+paper/
+zenodo_upload/
+tanager-mangrove-mapping-data.zip
+outputs/figures/old/
+outputs/models/old/
+outputs/results/old/
+
 # Claude Code
 CLAUDE.md
 CLAUDE_v0.md
