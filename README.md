@@ -80,17 +80,17 @@ background with a CartoDB Positron basemap.
 
 ![Pseudo-label coastal zoom - Sangatta](outputs/figures/pseudo_label_zoom_sangatta_20250302_030003_92_4001.png)
 
-### NB02 - Commission-omission error map (Sangatta, XGBoost Tuned)
+### NB02 + NB03 - Commission-omission error map - all sites (XGBoost Tuned)
 
-Accuracy is assessed against GMW v3 (Global Mangrove Watch v3, an independent reference dataset - never used in training).
+Per-pixel agreement between the XGBoost extent map and GMW v3 (Global Mangrove Watch v3,
+an independent reference dataset -- never used in training) for all six scenes.
+CartoDB Positron basemap; background pixels are transparent so the base map shows through.
 
 - Green: true positive - mangrove correctly detected
 - Red: false positive - land incorrectly classified as mangrove (over-prediction)
 - Orange: false negative - mangrove pixels missed by the model (under-prediction)
 
-Evaluation is restricted to the coastal candidate zone (57,014 pixels) to avoid penalising the model for areas outside its operational scope.
-
-![Commission-omission error map - Sangatta XGBoost Tuned](outputs/figures/commission_omission_xgb_tuned_sangatta_20250302_030003_92_4001.png)
+![Commission-omission error map - all sites](outputs/figures/commission_omission_panel.png)
 
 ### NB03 - Predicted mangrove extent - all sites
 
