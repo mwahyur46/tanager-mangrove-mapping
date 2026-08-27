@@ -207,7 +207,7 @@ def plot_confusion_matrix(cm: np.ndarray,
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"  Saved : {save_path}")
     plt.show()
 
@@ -279,6 +279,6 @@ def plot_agreement_map(extent_map: np.ndarray,
 
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"  Saved : {save_path}")
     plt.show()

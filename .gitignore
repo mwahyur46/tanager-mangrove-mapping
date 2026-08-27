@@ -16,6 +16,7 @@ build/
 .venv/
 env/
 venv/
+.env.example
 
 # Data (large files - use README_data.md for download instructions)
 data/raw/

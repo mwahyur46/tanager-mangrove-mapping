@@ -2,9 +2,10 @@
 Spatial Visualization Helpers
 
 On-the-fly raster reprojection to EPSG:4326, RGB composite generation
-with percentile contrast stretching, and standardized geographic map-axes
-formatting - shared across all visualization cells in the competition and
-journal notebooks to ensure a consistent look across all map panels.
+with percentile contrast stretching, standardized geographic map-axes
+formatting, and CARTO basemap overlay - shared across all visualization
+cells in the competition and journal notebooks to ensure a consistent
+look across all map panels.
 """
 
 import os
@@ -244,6 +245,48 @@ def reproject_rgb_composite_to_4326(src, bands):
 
     rgba[:, :, 3] = valid_mask.astype(np.float32)
     return rgba, extent
+
+
+def add_basemap(ax, carto_key):
+    """Add a CARTO Positron basemap behind existing data layers.
+
+    Builds the tile provider from CartoDB.Positron metadata so that
+    contextily's auto-zoom matches the provider default. The keyed URL
+    is substituted to remove the API-key-required watermark.
+
+    Call this AFTER ax.imshow() and ax.set_aspect() so the axes extent
+    and aspect ratio are locked before tiles are fetched. The data layer
+    must use zorder >= 2; this function draws at zorder=0.
+
+    Parameters
+    ----------
+    ax        : matplotlib.axes.Axes
+        A georeferenced axes already set to EPSG:4326.
+    carto_key : str
+        CARTO Basemaps API key. Obtain a free key at carto.com/basemaps/apikey
+        and store it in a .env file (local) or Colab Secrets (Colab).
+    """
+    try:
+        import contextily as cx
+    except ImportError:
+        print('  [WARNING] contextily not installed - basemap skipped')
+        return
+
+    _lib  = os.environ.pop('PROJ_LIB',  None)
+    _data = os.environ.pop('PROJ_DATA', None)
+    try:
+        provider = cx.providers.CartoDB.Positron.copy()
+        provider['url'] = (
+            'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+            f'?key={carto_key}'
+        )
+        cx.add_basemap(ax, crs='EPSG:4326', source=provider,
+                       zorder=0, alpha=1.0)
+    except Exception as e:
+        print(f'  [WARNING] basemap failed: {e}')
+    finally:
+        if _lib:  os.environ['PROJ_LIB']  = _lib
+        if _data: os.environ['PROJ_DATA'] = _data
 
 
 def format_map_axes(ax, fontsize=11, spine_color='black', spine_width=2):
