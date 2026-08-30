@@ -45,6 +45,33 @@ The pipeline operates in three stages. In **pre-processing**, each Tanager-1 sce
 
 ## Figures
 
+### NB01 - Spectral characterization (Sangatta)
+
+Mean surface reflectance signatures sampled at 28 labeled pixels across five land cover classes,
+plotted against the full 426-band Tanager-1 spectrum (380–2500 nm). Vertical dashed lines mark
+the six band wavelengths extracted for spectral index computation. Each class mean is averaged
+from 5–6 manually verified pixels in the Sangatta scene.
+
+Key observations:
+- Mangrove shows a sharp red-edge rise (~700 nm) and moderate NIR plateau, characteristic of
+  high-chlorophyll coastal vegetation.
+- Non-mangrove vegetation has a higher NIR plateau than mangrove, consistent with dryland
+  forest and shrub.
+- Water is flat and near-zero across the full spectrum, as expected.
+- Bare land and urban are elevated across NIR–SWIR, providing good contrast with water and
+  vegetation classes.
+
+The narrow spikes visible near 1400 nm and 1900 nm are **atmospheric water vapour absorption
+artifacts**, not real surface signal. In those spectral windows, the atmosphere absorbs nearly
+all incoming solar radiation, leaving near-zero sensor signal. The atmospheric correction
+algorithm then divides by a near-zero transmittance term during surface reflectance retrieval,
+producing numerically unstable values that can exceed the physical [0, 1] bound. The same
+artifact pattern is common in all spaceborne hyperspectral sensors (EMIT, AVIRIS-NG, Tanager)
+and is expected behaviour. None of the six extracted bands fall in these absorption windows,
+so the artifacts have no effect on the spectral indices or classification.
+
+![Spectral characterization - Sangatta](outputs/figures/spectral_diagnostic_sangatta.png)
+
 ### NB01 - Spectral indices (Sangatta)
 
 Eight spectral indices computed from the 6-band GeoTIFF. MVI and NDMI provide the
