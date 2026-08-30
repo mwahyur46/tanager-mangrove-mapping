@@ -107,6 +107,29 @@ background with a CartoDB Positron basemap.
 
 ![Pseudo-label coastal zoom - Sangatta](outputs/figures/pseudo_label_zoom_sangatta_20250302_030003_92_4001.png)
 
+### NB02b - Cross-validation feature importance heatmap (Sangatta)
+
+Mean absolute SHAP values per feature across 5 stratified CV folds, re-run using the best
+hyperparameters from NB02 tuning. Each cell shows the mean |SHAP| for the mangrove class.
+Stable values across folds indicate that the feature ranking is robust and not fold-dependent.
+
+![CV feature importance heatmap - Sangatta](outputs/figures/cv_importance_heatmap_sangatta_20250302_030003_92_4001.png)
+
+### NB02b - SHAP beeswarm (Sangatta)
+
+SHAP TreeExplainer on the final XGBoost Tuned model. Each point is one sample; the x-axis shows
+the SHAP value (positive = pushes toward mangrove, negative = away from mangrove); colour shows
+the feature value (high/low). Features are ranked by mean |SHAP| descending.
+
+![SHAP beeswarm - Sangatta](outputs/figures/shap_beeswarm_sangatta_20250302_030003_92_4001.png)
+
+### NB02b - SHAP mean absolute bar (Sangatta)
+
+Global feature importance summarised as mean |SHAP| across a balanced subsample of 5,000 pixels.
+Provides a single-bar ranking complementary to the beeswarm and heatmap panels.
+
+![SHAP mean bar - Sangatta](outputs/figures/shap_mean_bar_sangatta_20250302_030003_92_4001.png)
+
 ### NB02 + NB03 - Commission-omission error map - all sites (XGBoost Tuned)
 
 Per-pixel agreement between the XGBoost extent map and GMW v3 (Global Mangrove Watch v3,

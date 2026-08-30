@@ -15,6 +15,7 @@ Run in order — each stage depends on outputs from the previous one.
 |---|---|---|
 | `01_preprocessing.ipynb` | Band extraction, spectral indices, adaptive thresholds, coastal candidate mask | 6-band GeoTIFF, REIP raster, threshold JSON |
 | `02_classification.ipynb` | Pseudo-label generation, XGBoost training, GMW v3 evaluation on training site | Trained models, extent map, accuracy CSV |
+| `02b_model_interpretation.ipynb` | SHAP TreeExplainer + CV importance heatmap on the final XGBoost Tuned model | CV heatmap, beeswarm plot, mean-bar chart |
 | `03_transferability.ipynb` | Zero-shot transfer to 5 scenes across 4 sites | Per-site thresholds, accuracy CSVs, transferability summary |
 
 ---
