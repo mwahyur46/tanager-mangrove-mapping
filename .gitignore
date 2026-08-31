@@ -47,7 +47,7 @@ Thumbs.db
 *.swp
 
 # Journal (in-development, not part of competition submission)
-notebooks/journal/*.ipynb
+notebooks/journal/
 
 # Competition submission and archive (not part of repo structure)
 paper/
