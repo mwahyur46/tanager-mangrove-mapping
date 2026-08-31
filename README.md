@@ -30,7 +30,7 @@ Tanager-1 HDF5 (data/raw/)
 
 The pipeline operates in three stages. In **pre-processing**, each Tanager-1 scene is converted from HDF5 to a 6-band GeoTIFF, eight spectral indices and REIP are extracted, and a coastal candidate mask (MNDWI + SAVI Otsu, capped at 500 m from water) restricts analysis to plausible mangrove pixels. In **classification and model development**, the Sangatta training anchor undergoes per-scene adaptive threshold calibration (bimodal valley detection for NDMI; forced Otsu for MVI) to generate pseudo-labels, which drive XGBoost training with 5-fold cross-validation hyperparameter tuning -- no manual labelling is required. In **transfer and validation**, the trained model is applied zero-shot to all six scenes after per-scene threshold recalibration; predictions are assessed against GMW v3 (an independent reference never used in training) using Kappa, F1, and IoU, and the final outputs are per-scene mangrove extent maps together with commission-omission error maps and a transferability summary table.
 
-![Pipeline Flowchart](docs/flowchart.jpg)
+<img src="docs/flowchart.jpg" width="700" alt="Pipeline Flowchart">
 
 ## Study Sites
 
@@ -70,14 +70,14 @@ artifact pattern is common in all spaceborne hyperspectral sensors (EMIT, AVIRIS
 and is expected behaviour. None of the six extracted bands fall in these absorption windows,
 so the artifacts have no effect on the spectral indices or classification.
 
-![Spectral characterization - Sangatta](outputs/figures/spectral_diagnostic_sangatta.png)
+<img src="outputs/figures/spectral_diagnostic_sangatta.png" width="700" alt="Spectral characterization - Sangatta">
 
 ### NB01 - Spectral indices (Sangatta)
 
 Eight spectral indices computed from the 6-band GeoTIFF. MVI and NDMI provide the
 bimodal signal used by the adaptive threshold stage.
 
-![Spectral indices - Sangatta](outputs/figures/indices_sangatta.png)
+<img src="outputs/figures/indices_sangatta.png" width="700" alt="Spectral indices - Sangatta">
 
 ### NB01 - Adaptive threshold calibration (Sangatta)
 
@@ -85,14 +85,14 @@ Per-scene histogram analysis within the coastal candidate zone. MVI uses forced 
 NDMI uses bimodal valley detection. Thresholds are saved to JSON and replayed at transfer
 time - no retraining required.
 
-![Adaptive thresholds - Sangatta](outputs/figures/thresholds_sangatta.png)
+<img src="outputs/figures/thresholds_sangatta.png" width="700" alt="Adaptive thresholds - Sangatta">
 
 ### NB02 - Pseudo-label map and train/test split (Sangatta)
 
 Left: pseudo-labels generated from MVI > 4.04 AND NDMI > 0.25, constrained to the
 candidate zone. Right: spatial distribution of the 80/20 train-test split (398 k / 99 k samples).
 
-![Pseudo-label map - Sangatta](outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png)
+<img src="outputs/figures/pseudo_label_map_sangatta_20250302_030003_92_4001.png" width="700" alt="Pseudo-label map - Sangatta">
 
 ### NB02 - Pseudo-label coastal zoom panel (Sangatta)
 
@@ -105,7 +105,7 @@ background with a CartoDB Positron basemap.
 - Zoom 2 (purple frame): central/southern coastal area
 - Zoom 3 (gold frame): southern area
 
-![Pseudo-label coastal zoom - Sangatta](outputs/figures/pseudo_label_zoom_sangatta_20250302_030003_92_4001.png)
+<img src="outputs/figures/pseudo_label_zoom_sangatta_20250302_030003_92_4001.png" width="700" alt="Pseudo-label coastal zoom - Sangatta">
 
 ### NB02b - Cross-validation feature importance heatmap (Sangatta)
 
@@ -113,7 +113,7 @@ Mean absolute SHAP values per feature across 5 stratified CV folds, re-run using
 hyperparameters from NB02 tuning. Each cell shows the mean |SHAP| for the mangrove class.
 Stable values across folds indicate that the feature ranking is robust and not fold-dependent.
 
-![CV feature importance heatmap - Sangatta](outputs/figures/cv_importance_heatmap_sangatta_20250302_030003_92_4001.png)
+<img src="outputs/figures/cv_importance_heatmap_sangatta_20250302_030003_92_4001.png" width="700" alt="CV feature importance heatmap - Sangatta">
 
 ### NB02b - SHAP beeswarm (Sangatta)
 
@@ -121,14 +121,14 @@ SHAP TreeExplainer on the final XGBoost Tuned model. Each point is one sample; t
 the SHAP value (positive = pushes toward mangrove, negative = away from mangrove); colour shows
 the feature value (high/low). Features are ranked by mean |SHAP| descending.
 
-![SHAP beeswarm - Sangatta](outputs/figures/shap_beeswarm_sangatta_20250302_030003_92_4001.png)
+<img src="outputs/figures/shap_beeswarm_sangatta_20250302_030003_92_4001.png" width="700" alt="SHAP beeswarm - Sangatta">
 
 ### NB02b - SHAP mean absolute bar (Sangatta)
 
 Global feature importance summarised as mean |SHAP| across a balanced subsample of 5,000 pixels.
 Provides a single-bar ranking complementary to the beeswarm and heatmap panels.
 
-![SHAP mean bar - Sangatta](outputs/figures/shap_mean_bar_sangatta_20250302_030003_92_4001.png)
+<img src="outputs/figures/shap_mean_bar_sangatta_20250302_030003_92_4001.png" width="700" alt="SHAP mean bar - Sangatta">
 
 ### NB02 + NB03 - Commission-omission error map - all sites (XGBoost Tuned)
 
@@ -140,7 +140,7 @@ CartoDB Positron basemap; background pixels are transparent so the base map show
 - Red: false positive - land incorrectly classified as mangrove (over-prediction)
 - Orange: false negative - mangrove pixels missed by the model (under-prediction)
 
-![Commission-omission error map - all sites](outputs/figures/commission_omission_panel.png)
+<img src="outputs/figures/commission_omission_panel.png" width="700" alt="Commission-omission error map - all sites">
 
 ### NB03 - Predicted mangrove extent - all sites
 
@@ -148,7 +148,7 @@ XGBoost trained on Sangatta applied zero-shot to all six scenes (8 indices + REI
 Each panel is padded to a square extent for consistent framing across scenes.
 Gujarat near-blank panel reflects negligible mangrove cover at that scene.
 
-![Mangrove extent - all sites](outputs/figures/transferability_extent_maps.png)
+<img src="outputs/figures/transferability_extent_maps.png" width="700" alt="Mangrove extent - all sites">
 
 ### NB03 - Extent maps overlaid on Tanager true-colour imagery
 
@@ -156,7 +156,7 @@ CartoDB Positron basemap with Tanager true-colour composite (R:660 nm, G:560 nm,
 2-98% contrast stretch) for all six scenes. Mangrove extent shown as yellow-green fill
 (#d7f702, 80% opacity). Includes scale bar, north arrow, and legend per panel.
 
-![Extent maps on basemap - all sites](outputs/figures/transferability_basemap_panel.png)
+<img src="outputs/figures/transferability_basemap_panel.png" width="700" alt="Extent maps on basemap - all sites">
 
 ---
 
