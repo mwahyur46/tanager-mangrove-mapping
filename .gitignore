@@ -27,10 +27,15 @@ data/**/*.tif
 data/**/*.tiff
 data/**/*.nc
 
-# Outputs (regenerable)
+# Outputs (regenerable - full outputs archived on Zenodo)
 outputs/models/*.joblib
 outputs/figures/*.tif
 outputs/results/*.csv
+outputs/results/*.json
+outputs/vector/*.gpkg
+
+# Validation reference (archived on Zenodo)
+data/gmw_v3/*.geojson
 
 # OS
 .DS_Store
