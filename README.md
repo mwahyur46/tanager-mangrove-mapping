@@ -1,8 +1,8 @@
 # tanager-mangrove-mapping
 
-**Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds**
+**Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds and Pseudo-Labels**
 
-Submitted to the [Planet Tanager Open Data Competition](https://www.planet.com/) (August 2026).
+Submitted to the [Planet Tanager Open Data Competition](https://learn.planet.com/2026-Tanager-Open-Data-Competition.html) (August 2026).
 
 ---
 
