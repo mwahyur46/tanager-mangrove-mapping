@@ -1,3 +1,5 @@
+![repo header](docs/repo-header.png)
+
 # tanager-mangrove-mapping
 
 **Transferable Mangrove Extent Mapping from Tanager-1 Hyperspectral Imagery Using Adaptive Spectral Thresholds and Pseudo-Labels**
