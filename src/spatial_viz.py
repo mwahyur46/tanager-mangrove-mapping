@@ -194,11 +194,16 @@ def reproject_rgb_composite_to_4326(src, bands):
         resolved_indices.append(idx_found)
 
     # 2. Reproject or read each of the 3 bands
+    from rasterio.crs import CRS as RasterioCRS
+    import pyproj
+    _pyproj_4326 = pyproj.CRS.from_epsg(4326)
+    dst_crs_obj  = RasterioCRS.from_wkt(_pyproj_4326.to_wkt())
+
     rgb_layers = []
 
-    if src.crs and src.crs.to_string() != DST_CRS:
+    if src.crs and src.crs.to_string() != DST_CRS and src.crs != dst_crs_obj:
         transform, width, height = calculate_default_transform(
-            src.crs, DST_CRS, src.width, src.height, *src.bounds
+            src.crs, dst_crs_obj, src.width, src.height, *src.bounds
         )
         for b_idx in resolved_indices:
             img_data = np.empty((height, width), dtype=np.float32)
@@ -208,7 +213,7 @@ def reproject_rgb_composite_to_4326(src, bands):
                 src_transform=src.transform,
                 src_crs=src.crs,
                 dst_transform=transform,
-                dst_crs=DST_CRS,
+                dst_crs=dst_crs_obj,
                 resampling=Resampling.nearest,
             )
             rgb_layers.append(img_data)

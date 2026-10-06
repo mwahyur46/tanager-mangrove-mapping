@@ -84,7 +84,7 @@ def run_transfer_scene(site: str,
                        results_dir: str,
                        gmw_dir: str = None) -> dict:
     """
-    Apply trained RF classifier to a single new scene using per-scene
+    Apply pre-trained XGBoost model to a single new scene using per-scene
     adaptive thresholds and coastal candidate mask. No retraining.
 
     Pipeline per transfer site:
@@ -169,7 +169,7 @@ def run_transfer_scene(site: str,
         extra_features=extra_features,
     )
 
-    # 7. Save extent GeoTIFF
+    # 6. Save extent GeoTIFF
     extent_path = processed_dir / f'extent_mangrove_{site}_{scene_id}.tif'
     with rasterio.open(
         extent_path, 'w',
@@ -196,7 +196,7 @@ def run_transfer_scene(site: str,
         'has_reip'      : has_reip,
     }
 
-    # 8. Evaluate against GMW v3 (optional)
+    # 7. Evaluate against GMW v3 (optional)
     if gmw_dir is not None:
         gmw_path = Path(gmw_dir) / f'gmw_{site}_{scene_id}.geojson'
         if gmw_path.exists():

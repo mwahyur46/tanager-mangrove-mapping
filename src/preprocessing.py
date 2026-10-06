@@ -8,7 +8,6 @@ import os
 import re
 import h5py
 import numpy as np
-import xarray as xr
 
 # ---------------------------------------------------------------------------
 # Fix PROJ database version mismatch: force GDAL/rasterio to use the same
@@ -25,7 +24,6 @@ except Exception:
     pass
 
 import rasterio
-from rasterio.transform import from_bounds
 from rasterio.transform import Affine
 from rasterio.crs import CRS
 from pathlib import Path

@@ -94,7 +94,7 @@ def build_feature_matrix(indices: dict,
 
     Parameters
     ----------
-    indices        : dict of 2D index arrays (the 5 spectral indices)
+    indices        : dict of 2D index arrays (the 8 spectral indices)
     labels         : 2D pseudo-label array from generate_pseudo_labels()
     extra_features : optional dict of {name: 2D array} of additional per-pixel
                      diagnostic features (e.g. {'AbsDepth1640': depth_array}
@@ -459,6 +459,7 @@ def tune_xgboost(X_train: np.ndarray, y_train: np.ndarray,
     best_model  : fitted XGBClassifier with best parameters
     best_params : dict of best hyperparameters
     best_score  : best CV F1 score (mangrove class, pseudo-label set)
+    search      : fitted RandomizedSearchCV object
     """
     from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
     from sklearn.metrics import make_scorer, f1_score
